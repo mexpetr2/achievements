@@ -1,0 +1,14 @@
+# Outils tiers et gros binaires (managers de sauvegarde, éditeurs) — non versionnés
+Elden Ring/
+Cyberpunk 2077/
+
+# Python
+__pycache__/
+*.pyc
+.ruff_cache/
+.venv/
+venv/
+
+# Données locales de l'outil (exports, DB) — à ajuster une fois le projet démarré
+*.db
+*.sqlite3

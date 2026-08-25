@@ -12,11 +12,6 @@ COPY src/ ./src/
 RUN pip install --no-cache-dir --upgrade pip \
     && pip install --no-cache-dir . gunicorn
 
-RUN useradd --create-home --uid 1000 app \
-    && mkdir -p /data /inbox \
-    && chown -R app:app /data /inbox
-USER app
-
 VOLUME ["/data", "/inbox"]
 EXPOSE 8000
 

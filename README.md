@@ -29,7 +29,8 @@ python -m venv .venv
 Lancement (remplacer le chemin par votre dossier partagé) :
 
 ```bash
-.venv/Scripts/python.exe -m extractor --output-dir "\\NAS\partage\succes"
+.venv/Scripts/python.exe -m extractor --output-dir "\\NAS\partage\succes" #\\192.168.1.98\smbShared\achievements
+.venv/Scripts/python.exe -m extractor --output-dir "\\192.168.1.98\smbShared\achievements" 
 ```
 
 Options : `--stats-dir` et `--account-id` remplacent la détection automatique,

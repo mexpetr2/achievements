@@ -8,7 +8,7 @@ __pycache__/
 .ruff_cache/
 .venv/
 venv/
-
+.pytest_cache/
 # Données locales de l'outil (exports, DB) — à ajuster une fois le projet démarré
 *.db
 *.sqlite3

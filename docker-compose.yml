@@ -1,0 +1,22 @@
+services:
+  achievements:
+    build: .
+    container_name: achievements
+    restart: unless-stopped
+    ports:
+      - "8080:8000"
+    environment:
+      ACHIEVEMENTS_DB: /data/achievements.db
+      ACHIEVEMENTS_INBOX: /inbox
+      ACHIEVEMENTS_SCAN_INTERVAL: "300"
+      # Generer avec : python scripts/generate_password_hash.py
+      ACHIEVEMENTS_PASSWORD_HASH: "${ACHIEVEMENTS_PASSWORD_HASH:?definir dans .env}"
+      # Generer avec : python -c "import secrets; print(secrets.token_hex(32))"
+      ACHIEVEMENTS_SECRET_KEY: "${ACHIEVEMENTS_SECRET_KEY:?definir dans .env}"
+    volumes:
+      - achievements-data:/data
+      # Adapter ce chemin au dossier partage reel du NAS :
+      - /volume1/partage/succes:/inbox
+
+volumes:
+  achievements-data:

@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}{{ game.name }} — Mes succès{% endblock %}
+{% block body %}
+<header>
+  <h1>{{ game.name }}</h1>
+  <a href="{{ url_for('index') }}">← Tous les jeux</a>
+</header>
+
+<p class="muted">
+  {{ game.unlocked }} / {{ game.total }} succès — {{ game.percent }} %
+  · mis à jour le {{ game.updated_at[:10] }}
+</p>
+<div class="bar" style="margin-bottom: 1.5rem;">
+  <span style="width: {{ game.percent }}%"></span>
+</div>
+
+<div class="grid">
+  {% for ach in game.achievements %}
+  <div class="card ach {% if not ach.unlocked %}locked{% endif %}">
+    {% set image = ach.icon if ach.unlocked else (ach.icon_gray or ach.icon) %}
+    {% if image %}<img src="{{ image }}" alt="" loading="lazy">{% endif %}
+    <div>
+      <strong>{{ ach.name }}</strong>
+      {% if ach.description %}<div class="muted">{{ ach.description }}</div>{% endif %}
+      {% if ach.unlocked and ach.unlock_time %}
+      <div class="muted">Débloqué le {{ ach.unlock_time[:10] }}</div>
+      {% endif %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}

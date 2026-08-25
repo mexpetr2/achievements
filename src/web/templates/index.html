@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Mes succès{% endblock %}
+{% block body %}
+<header>
+  <h1>Mes succès</h1>
+  <form method="post" action="{{ url_for('logout') }}">
+    <button type="submit">Déconnexion</button>
+  </form>
+</header>
+
+{% if recent %}
+<h2 style="font-size: 1.1rem;">Derniers débloqués</h2>
+<div class="grid" style="margin-bottom: 2rem;">
+  {% for item in recent %}
+  <div class="card ach">
+    {% if item.icon %}<img src="{{ item.icon }}" alt="" loading="lazy">{% endif %}
+    <div>
+      <strong>{{ item.name }}</strong>
+      <div class="muted">{{ item.game_name }}</div>
+      <div class="muted">{{ item.unlock_time[:10] }}</div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<h2 style="font-size: 1.1rem;">Jeux ({{ games|length }})</h2>
+<div class="grid">
+  {% for game in games %}
+  <a class="card" href="{{ url_for('game_detail', appid=game.appid) }}">
+    <strong>{{ game.name }}</strong>
+    <div class="muted">{{ game.unlocked }} / {{ game.total }} — {{ game.percent }} %</div>
+    <div class="bar"><span style="width: {{ game.percent }}%"></span></div>
+  </a>
+  {% else %}
+  <p class="muted">Aucun jeu importé pour l'instant.</p>
+  {% endfor %}
+</div>
+{% endblock %}

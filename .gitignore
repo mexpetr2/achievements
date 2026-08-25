@@ -12,3 +12,13 @@ venv/
 # Données locales de l'outil (exports, DB) — à ajuster une fois le projet démarré
 *.db
 *.sqlite3
+
+# Sorties de l'extracteur
+exports/
+*.json.tmp
+
+# Packaging
+*.egg-info/
+
+# Secrets de deploiement
+.env

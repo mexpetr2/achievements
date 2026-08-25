@@ -113,3 +113,60 @@ def test_create_app_requires_password_hash(tmp_path):
         create_app(
             {"DATABASE": str(tmp_path / "x.db"), "SECRET_KEY": "k", "START_WATCHER": False}
         )
+
+
+def test_game_page_hides_spoiler_for_locked_hidden_achievement(tmp_path):
+    db_path = tmp_path / "spoiler.db"
+    conn = connect(db_path)
+    init_db(conn)
+    ingest_export(
+        conn,
+        {
+            "exported_at": "2026-08-24T22:10:00+00:00",
+            "games": [
+                {
+                    "appid": 999,
+                    "name": "Jeu Spoiler",
+                    "achievements": [
+                        {
+                            "api_name": "SECRET_LOCKED",
+                            "name": "La fin secrete",
+                            "description": "Vous avez trahi tout le monde.",
+                            "hidden": True,
+                            "unlocked": False,
+                        },
+                        {
+                            "api_name": "SECRET_UNLOCKED",
+                            "name": "Fin secrete debloquee",
+                            "description": "Recompense pour la fin secrete.",
+                            "hidden": True,
+                            "unlocked": True,
+                            "unlock_time": "2024-01-01T00:00:00+00:00",
+                        },
+                    ],
+                }
+            ],
+        },
+    )
+    conn.close()
+
+    app = create_app(
+        {
+            "DATABASE": str(db_path),
+            "PASSWORD_HASH": hash_password(PASSWORD),
+            "SECRET_KEY": "cle-de-test",
+            "TESTING": True,
+            "START_WATCHER": False,
+        }
+    )
+    client = app.test_client()
+    client.post("/login", data={"password": PASSWORD})
+
+    body = client.get("/game/999").get_data(as_text=True)
+
+    assert "La fin secrete" not in body
+    assert "Vous avez trahi tout le monde." not in body
+    assert "Succès caché" in body
+
+    assert "Fin secrete debloquee" in body
+    assert "Recompense pour la fin secrete." in body

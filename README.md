@@ -51,9 +51,8 @@ python scripts/generate_password_hash.py
 python -c "import secrets; print('ACHIEVEMENTS_SECRET_KEY=' + secrets.token_hex(32))"
 ```
 
-Placer les deux lignes produites dans un fichier `.env` à côté du
-`docker-compose.yml`, ajuster le chemin du dossier partagé dans le
-`docker-compose.yml`, puis :
+Copier `.env.example` en `.env` et y placer les deux lignes produites,
+ajuster le chemin du dossier partagé dans le `docker-compose.yml`, puis :
 
 ```bash
 docker compose up -d

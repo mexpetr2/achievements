@@ -3,7 +3,7 @@
 import json
 import logging
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from extractor.schema import parse_schema
@@ -42,7 +42,7 @@ def build_game_export(game: GameFiles) -> dict:
                 "hidden": definition.hidden,
                 "unlocked": timestamp is not None,
                 "unlock_time": (
-                    datetime.fromtimestamp(timestamp, tz=timezone.utc).isoformat()
+                    datetime.fromtimestamp(timestamp, tz=UTC).isoformat()
                     if timestamp is not None
                     else None
                 ),
@@ -62,7 +62,7 @@ def build_export(games: list[GameFiles], account_id: str) -> dict:
             logger.warning("jeu %s ignore : %s: %s", game.appid, type(error).__name__, error)
 
     return {
-        "exported_at": datetime.now(timezone.utc).isoformat(),
+        "exported_at": datetime.now(UTC).isoformat(),
         "account_id": account_id,
         "steam_id64": int(account_id) + STEAMID64_BASE,
         "games": exported_games,
@@ -79,7 +79,7 @@ def write_export(export: dict, target_dir: Path) -> Path:
     if not target_dir.is_dir():
         raise FileNotFoundError(f"dossier de destination introuvable : {target_dir}")
 
-    stamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
+    stamp = datetime.now(UTC).strftime("%Y%m%d-%H%M%S")
     final_path = target_dir / f"succes_{stamp}.json"
     temp_path = target_dir / f"succes_{stamp}.json.tmp"
 

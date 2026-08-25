@@ -58,7 +58,7 @@ def test_parse_schema_prefers_french_labels():
 def test_parse_schema_falls_back_to_english_when_french_missing():
     raw = build_schema_bin(1245620, "Elden Ring", [ACH_A])
     # Retirer la traduction francaise du nom
-    raw = raw.replace("\x01french\x00Seigneur d'Elden\x00".encode("utf-8"), b"", 1)
+    raw = raw.replace(b"\x01french\x00Seigneur d'Elden\x00", b"", 1)
     ach = parse_schema(raw, appid=1245620).achievements[("1", 1)]
     assert ach.name == "Elden Lord"
 

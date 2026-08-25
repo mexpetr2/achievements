@@ -2,7 +2,7 @@
 
 import json
 import sqlite3
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 
@@ -41,7 +41,7 @@ def ingest_export(conn: sqlite3.Connection, payload: dict) -> dict:
     if not isinstance(games, list):
         raise InvalidExportError("export invalide : cle 'games' absente ou mal typee")
 
-    updated_at = str(payload.get("exported_at") or datetime.now(timezone.utc).isoformat())
+    updated_at = str(payload.get("exported_at") or datetime.now(UTC).isoformat())
     game_count = 0
     achievement_count = 0
 
@@ -92,7 +92,7 @@ def _record_import(conn: sqlite3.Connection, filename: str, status: str, detail:
     with conn:
         conn.execute(
             "INSERT INTO imports (filename, processed_at, status, detail) VALUES (?, ?, ?, ?)",
-            (filename, datetime.now(timezone.utc).isoformat(), status, detail),
+            (filename, datetime.now(UTC).isoformat(), status, detail),
         )
 
 

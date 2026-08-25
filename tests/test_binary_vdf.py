@@ -29,7 +29,7 @@ def test_parse_deeply_nested_structure():
 
 
 def test_parse_utf8_accented_text():
-    data = "\x01french\x00Cercle d'Elden\x00\x08".encode("utf-8")
+    data = b"\x01french\x00Cercle d'Elden\x00\x08"
     assert parse_binary_vdf(data) == {"french": "Cercle d'Elden"}
 
 

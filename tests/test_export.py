@@ -1,5 +1,5 @@
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
@@ -64,7 +64,7 @@ def test_build_game_export_marks_unlocked_and_locked(tmp_path):
 def test_build_game_export_converts_unlock_time_to_iso_utc(tmp_path):
     game = _write_game(tmp_path, unlocks={"1": {1: 1710265440}})
     result = build_game_export(game)
-    expected = datetime.fromtimestamp(1710265440, tz=timezone.utc).isoformat()
+    expected = datetime.fromtimestamp(1710265440, tz=UTC).isoformat()
     unlocked = next(a for a in result["achievements"] if a["api_name"] == "ACH01")
     assert unlocked["unlock_time"] == expected
 

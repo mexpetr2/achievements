@@ -4,7 +4,7 @@ import logging
 import shutil
 import sqlite3
 import threading
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from web.ingest import InvalidExportError, ingest_file
@@ -20,7 +20,7 @@ def _move_without_overwriting(source: Path, target_dir: Path) -> Path:
     target_dir.mkdir(parents=True, exist_ok=True)
     target = target_dir / source.name
     if target.exists():
-        stamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S-%f")
+        stamp = datetime.now(UTC).strftime("%Y%m%d-%H%M%S-%f")
         target = target_dir / f"{source.stem}_{stamp}{source.suffix}"
     shutil.move(str(source), str(target))
     return target

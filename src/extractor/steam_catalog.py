@@ -18,10 +18,25 @@ import time
 import urllib.request
 from collections.abc import Callable
 from pathlib import Path
+from typing import NamedTuple
 
 logger = logging.getLogger(__name__)
 
 APPDETAILS_URL = "https://store.steampowered.com/api/appdetails"
+
+
+class CatalogLookup(NamedTuple):
+    """Resultat de resolve_catalog_names.
+
+    `names` : appid -> nom public, pour les jeux confirmes sur le store.
+    `not_found` : appids confirmes absents du store (app de test/outil interne
+    sans fiche boutique) - a distinguer d'un appid simplement pas encore
+    verifie (echec reseau, ou lookup desactive), qui n'apparait dans aucun
+    des deux et doit rester affiche avec son nom local en repli.
+    """
+
+    names: dict[int, str]
+    not_found: set[int]
 
 
 def fetch_app_name(appid: int, timeout: float = 10) -> str | None:
@@ -59,15 +74,18 @@ def resolve_catalog_names(
     max_age_days: int = 30,
     fetch: Callable[..., str | None] = fetch_app_name,
     request_delay: float = 0.2,
-) -> dict[int, str]:
+) -> CatalogLookup:
     """Resout les noms publics des `appids` donnes, best-effort.
 
     Priorite par appid : cache frais -> reseau (puis mise a jour du cache).
     Un echec reseau sur un appid ne bloque pas les autres et n'ecrit rien
-    au cache pour lui (on retentera au prochain run). Une reponse "non
-    trouve" est mise en cache pour eviter de re-interroger inutilement le
-    store a chaque run. Ne leve jamais : conserve l'extraction utilisable
-    hors ligne.
+    au cache pour lui (on retentera au prochain run) : il n'apparait alors
+    dans aucun des deux ensembles retournes. Une reponse "non trouve" (le
+    store confirme que l'appid n'existe pas) est mise en cache et rapportee
+    dans `not_found`, pour eviter de re-interroger inutilement le store et
+    permettre a l'appelant d'exclure ces apps (outils/tests internes sans
+    fiche boutique). Ne leve jamais : conserve l'extraction utilisable hors
+    ligne.
     """
     cache_path = Path(cache_path)
     cache = _load_cache(cache_path)
@@ -75,6 +93,7 @@ def resolve_catalog_names(
     now = time.time()
 
     resolved: dict[int, str] = {}
+    not_found: set[int] = set()
     dirty = False
     fetched_once = False
 
@@ -83,6 +102,8 @@ def resolve_catalog_names(
         if entry is not None and now - entry.get("fetched_at", 0) <= max_age_seconds:
             if entry.get("name"):
                 resolved[appid] = entry["name"]
+            else:
+                not_found.add(appid)
             continue
 
         if fetched_once:
@@ -99,6 +120,8 @@ def resolve_catalog_names(
         dirty = True
         if name:
             resolved[appid] = name
+        else:
+            not_found.add(appid)
 
     if dirty:
         try:
@@ -106,4 +129,4 @@ def resolve_catalog_names(
         except OSError as error:
             logger.warning("ecriture du cache catalogue impossible : %s", error)
 
-    return resolved
+    return CatalogLookup(names=resolved, not_found=not_found)

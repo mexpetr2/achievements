@@ -132,6 +132,35 @@ def test_build_export_falls_back_to_schema_name_for_appid_missing_from_catalog(t
     assert export["games"][0]["name"] == "Elden Ring"
 
 
+def test_build_export_excludes_not_found_game_with_zero_unlocks(tmp_path):
+    game = _write_game(tmp_path, appid=999999, unlocks={})
+
+    export = build_export([game], account_id="555", not_found_appids={999999})
+
+    assert export["games"] == []
+
+
+def test_build_export_keeps_not_found_game_with_at_least_one_unlock(tmp_path):
+    # Jeu ferme depuis (plus de fiche boutique) mais reellement joue : ses
+    # succes reels ne doivent pas disparaitre de l'outil.
+    game = _write_game(tmp_path, appid=200110, unlocks={"1": {1: 1710265440}})
+
+    export = build_export([game], account_id="555", not_found_appids={200110})
+
+    assert [g["appid"] for g in export["games"]] == [200110]
+    assert export["games"][0]["name"] == "Elden Ring"  # repli sur le nom local du schema
+
+
+def test_build_export_keeps_game_with_zero_unlocks_when_not_in_not_found_set(tmp_path):
+    # Jeu recemment ajoute a la bibliotheque, pas encore joue : doit rester
+    # visible tant qu'il n'est pas confirme absent du store.
+    game = _write_game(tmp_path, appid=1245620, unlocks={})
+
+    export = build_export([game], account_id="555", not_found_appids=set())
+
+    assert [g["appid"] for g in export["games"]] == [1245620]
+
+
 def test_build_export_includes_metadata(tmp_path):
     export = build_export([_write_game(tmp_path)], account_id="555")
     assert export["account_id"] == "555"

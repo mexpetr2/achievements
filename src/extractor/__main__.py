@@ -73,11 +73,12 @@ def main(argv: list[str] | None = None, resolve_names=resolve_catalog_names) -> 
         account_id = args.account_id or pick_account_id(stats_dir)
         games = discover_games(stats_dir, account_id)
 
-        catalog_names = {}
+        catalog_names, not_found_appids = {}, set()
         if not args.no_catalog_lookup:
-            catalog_names = resolve_names([g.appid for g in games], Path(args.catalog_cache))
+            lookup = resolve_names([g.appid for g in games], Path(args.catalog_cache))
+            catalog_names, not_found_appids = lookup.names, lookup.not_found
 
-        export = build_export(games, account_id, catalog_names)
+        export = build_export(games, account_id, catalog_names, not_found_appids)
         path = write_export(export, Path(args.output_dir))
     except (SteamNotFoundError, FileNotFoundError, PermissionError, OSError) as error:
         print(f"Echec de l'export : {error}", file=sys.stderr)

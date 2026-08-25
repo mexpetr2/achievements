@@ -27,7 +27,8 @@ def test_resolve_catalog_names_uses_fresh_cache_entry_without_fetching(tmp_path)
         raise AssertionError("le reseau ne doit pas etre appele si le cache est frais")
 
     result = resolve_catalog_names([2651280], cache, max_age_days=30, fetch=boom)
-    assert result == {2651280: "Marvel's Spider-Man 2"}
+    assert result.names == {2651280: "Marvel's Spider-Man 2"}
+    assert result.not_found == set()
 
 
 def test_resolve_catalog_names_fetches_missing_entries(tmp_path):
@@ -37,7 +38,7 @@ def test_resolve_catalog_names_fetches_missing_entries(tmp_path):
         [323470], cache, max_age_days=30, fetch=lambda appid, timeout=10: "DRAGON BALL XENOVERSE"
     )
 
-    assert result == {323470: "DRAGON BALL XENOVERSE"}
+    assert result.names == {323470: "DRAGON BALL XENOVERSE"}
     saved = json.loads(cache.read_text(encoding="utf-8"))
     assert saved["323470"]["name"] == "DRAGON BALL XENOVERSE"
 
@@ -51,7 +52,7 @@ def test_resolve_catalog_names_refetches_stale_entries(tmp_path):
         [1], cache, max_age_days=30, fetch=lambda appid, timeout=10: "Nouveau nom"
     )
 
-    assert result == {1: "Nouveau nom"}
+    assert result.names == {1: "Nouveau nom"}
 
 
 def test_resolve_catalog_names_skips_appid_when_fetch_fails(tmp_path):
@@ -62,25 +63,29 @@ def test_resolve_catalog_names_skips_appid_when_fetch_fails(tmp_path):
 
     result = resolve_catalog_names([999], cache, max_age_days=30, fetch=fail)
 
-    assert result == {}
+    assert result.names == {}
+    assert result.not_found == set()  # echec reseau != confirmation "n'existe pas"
     assert not cache.exists()  # rien a sauver, on retentera au prochain run
 
 
-def test_resolve_catalog_names_caches_not_found_result(tmp_path):
+def test_resolve_catalog_names_marks_confirmed_absence_as_not_found(tmp_path):
     cache = tmp_path / "cache.json"
     calls = []
 
     def fetch(appid, timeout=10):
         calls.append(appid)
-        return None  # l'appid n'existe pas sur le store
+        return None  # l'appid n'existe pas sur le store (reponse success=false)
 
     result = resolve_catalog_names([404404], cache, max_age_days=30, fetch=fetch)
-    assert result == {}
+    assert result.names == {}
+    assert result.not_found == {404404}
     assert calls == [404404]
 
-    # deuxieme appel : entree "non trouve" encore fraiche, pas de nouvel appel reseau
+    # deuxieme appel : entree "non trouve" encore fraiche, pas de nouvel appel reseau,
+    # mais le statut "not_found" est bien reconduit depuis le cache
     result = resolve_catalog_names([404404], cache, max_age_days=30, fetch=fetch)
-    assert result == {}
+    assert result.names == {}
+    assert result.not_found == {404404}
     assert calls == [404404]
 
 
@@ -93,7 +98,7 @@ def test_resolve_catalog_names_ignores_corrupted_cache_file(tmp_path):
         [5], cache, max_age_days=30, fetch=lambda appid, timeout=10: "Recupere"
     )
 
-    assert result == {5: "Recupere"}
+    assert result.names == {5: "Recupere"}
 
 
 def test_resolve_catalog_names_only_fetches_stale_or_missing_appids(tmp_path):
@@ -108,7 +113,7 @@ def test_resolve_catalog_names_only_fetches_stale_or_missing_appids(tmp_path):
     result = resolve_catalog_names([1, 2, 3], cache, max_age_days=30, fetch=fetch)
 
     assert calls == [2, 3]
-    assert result == {1: "Deja en cache", 2: "Nom de 2", 3: "Nom de 3"}
+    assert result.names == {1: "Deja en cache", 2: "Nom de 2", 3: "Nom de 3"}
 
 
 def test_resolve_catalog_names_sleeps_between_real_fetches_but_not_before_the_first(tmp_path):

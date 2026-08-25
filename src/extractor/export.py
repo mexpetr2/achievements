@@ -59,16 +59,34 @@ def build_game_export(game: GameFiles, catalog_name: str | None = None) -> dict:
 
 
 def build_export(
-    games: list[GameFiles], account_id: str, catalog_names: dict[int, str] | None = None
+    games: list[GameFiles],
+    account_id: str,
+    catalog_names: dict[int, str] | None = None,
+    not_found_appids: set[int] | None = None,
 ) -> dict:
-    """Construit l'export complet, en sautant les jeux illisibles."""
+    """Construit l'export complet, en sautant les jeux illisibles.
+
+    `not_found_appids` : appids confirmes absents du store Steam (outils/apps
+    de test internes, ou jeux fermes depuis). Un jeu de cet ensemble n'est
+    exclu de l'export que s'il n'a par ailleurs aucun succes debloque : un
+    jeu ferme mais reellement joue garde ses succes reels visibles.
+    """
     catalog_names = catalog_names or {}
+    not_found_appids = not_found_appids or set()
     exported_games = []
     for game in games:
         try:
-            exported_games.append(build_game_export(game, catalog_names.get(game.appid)))
+            game_export = build_game_export(game, catalog_names.get(game.appid))
         except Exception as error:  # noqa: BLE001 - un jeu casse ne doit pas tout arreter
             logger.warning("jeu %s ignore : %s: %s", game.appid, type(error).__name__, error)
+            continue
+
+        if game.appid in not_found_appids and not any(
+            a["unlocked"] for a in game_export["achievements"]
+        ):
+            continue
+
+        exported_games.append(game_export)
 
     return {
         "exported_at": datetime.now(UTC).isoformat(),

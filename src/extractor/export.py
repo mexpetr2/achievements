@@ -23,8 +23,14 @@ def icon_url(appid: int, icon: str) -> str:
     return f"{CDN_BASE}/{appid}/{icon}" if icon else ""
 
 
-def build_game_export(game: GameFiles) -> dict:
-    """Fusionne definitions et etat de deblocage pour un jeu."""
+def build_game_export(game: GameFiles, catalog_name: str | None = None) -> dict:
+    """Fusionne definitions et etat de deblocage pour un jeu.
+
+    `catalog_name` (nom public resolu via le catalogue Steam, voir
+    steam_catalog.py) est prefere au `gamename` du schema local quand
+    disponible : ce dernier est parfois un nom de code interne au studio
+    (ex. "Popsicle" pour Marvel's Spider-Man 2) ou un placeholder Valve.
+    """
     schema = parse_schema(game.schema_path.read_bytes(), appid=game.appid)
     unlocks = parse_userstats(game.stats_path.read_bytes())
 
@@ -49,15 +55,18 @@ def build_game_export(game: GameFiles) -> dict:
             }
         )
 
-    return {"appid": game.appid, "name": schema.name, "achievements": achievements}
+    return {"appid": game.appid, "name": catalog_name or schema.name, "achievements": achievements}
 
 
-def build_export(games: list[GameFiles], account_id: str) -> dict:
+def build_export(
+    games: list[GameFiles], account_id: str, catalog_names: dict[int, str] | None = None
+) -> dict:
     """Construit l'export complet, en sautant les jeux illisibles."""
+    catalog_names = catalog_names or {}
     exported_games = []
     for game in games:
         try:
-            exported_games.append(build_game_export(game))
+            exported_games.append(build_game_export(game, catalog_names.get(game.appid)))
         except Exception as error:  # noqa: BLE001 - un jeu casse ne doit pas tout arreter
             logger.warning("jeu %s ignore : %s: %s", game.appid, type(error).__name__, error)
 

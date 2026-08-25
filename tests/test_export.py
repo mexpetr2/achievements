@@ -83,6 +83,24 @@ def test_build_game_export_includes_name_and_appid(tmp_path):
     assert result["name"] == "Elden Ring"
 
 
+def test_build_game_export_prefers_catalog_name_over_schema_name(tmp_path):
+    game = _write_game(tmp_path)
+    result = build_game_export(game, catalog_name="Nom public officiel")
+    assert result["name"] == "Nom public officiel"
+
+
+def test_build_game_export_falls_back_to_schema_name_when_no_catalog_name(tmp_path):
+    game = _write_game(tmp_path)
+    result = build_game_export(game, catalog_name=None)
+    assert result["name"] == "Elden Ring"
+
+
+def test_build_game_export_falls_back_to_schema_name_when_catalog_name_empty(tmp_path):
+    game = _write_game(tmp_path)
+    result = build_game_export(game, catalog_name="")
+    assert result["name"] == "Elden Ring"
+
+
 def test_build_export_skips_unreadable_game_and_continues(tmp_path):
     good = _write_game(tmp_path, appid=1245620)
     broken_schema = tmp_path / "UserGameStatsSchema_999.bin"
@@ -94,6 +112,24 @@ def test_build_export_skips_unreadable_game_and_continues(tmp_path):
     export = build_export([broken, good], account_id="555")
 
     assert [g["appid"] for g in export["games"]] == [1245620]
+
+
+def test_build_export_uses_catalog_names_when_provided(tmp_path):
+    game = _write_game(tmp_path, appid=2651280)
+
+    export = build_export(
+        [game], account_id="555", catalog_names={2651280: "Marvel's Spider-Man 2"}
+    )
+
+    assert export["games"][0]["name"] == "Marvel's Spider-Man 2"
+
+
+def test_build_export_falls_back_to_schema_name_for_appid_missing_from_catalog(tmp_path):
+    game = _write_game(tmp_path, appid=1245620)
+
+    export = build_export([game], account_id="555", catalog_names={999999: "Autre jeu"})
+
+    assert export["games"][0]["name"] == "Elden Ring"
 
 
 def test_build_export_includes_metadata(tmp_path):

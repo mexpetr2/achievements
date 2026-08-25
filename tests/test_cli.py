@@ -34,7 +34,9 @@ def test_main_writes_export_and_returns_zero(tmp_path, capsys):
     out = tmp_path / "partage"
     out.mkdir()
 
-    code = main(["--stats-dir", str(stats), "--output-dir", str(out)])
+    code = main(
+        ["--stats-dir", str(stats), "--output-dir", str(out), "--no-catalog-lookup"]
+    )
 
     assert code == 0
     exports = list(out.glob("succes_*.json"))
@@ -42,6 +44,43 @@ def test_main_writes_export_and_returns_zero(tmp_path, capsys):
     payload = json.loads(exports[0].read_text(encoding="utf-8"))
     assert payload["games"][0]["name"] == "Elden Ring"
     assert "1 jeu" in capsys.readouterr().out
+
+
+def test_main_uses_resolved_catalog_name(tmp_path):
+    stats = _fake_stats_dir(tmp_path)
+    out = tmp_path / "partage"
+    out.mkdir()
+
+    def fake_resolve(appids, cache_path, **kwargs):
+        assert list(appids) == [1245620]
+        return {1245620: "Nom public resolu"}
+
+    code = main(
+        ["--stats-dir", str(stats), "--output-dir", str(out)],
+        resolve_names=fake_resolve,
+    )
+
+    assert code == 0
+    payload = json.loads(next(out.glob("succes_*.json")).read_text(encoding="utf-8"))
+    assert payload["games"][0]["name"] == "Nom public resolu"
+
+
+def test_main_skips_catalog_lookup_when_flag_set(tmp_path):
+    stats = _fake_stats_dir(tmp_path)
+    out = tmp_path / "partage"
+    out.mkdir()
+
+    def boom(appids, cache_path, **kwargs):
+        raise AssertionError("le catalogue ne doit pas etre interroge avec --no-catalog-lookup")
+
+    code = main(
+        ["--stats-dir", str(stats), "--output-dir", str(out), "--no-catalog-lookup"],
+        resolve_names=boom,
+    )
+
+    assert code == 0
+    payload = json.loads(next(out.glob("succes_*.json")).read_text(encoding="utf-8"))
+    assert payload["games"][0]["name"] == "Elden Ring"
 
 
 def test_main_reports_missing_output_dir(tmp_path, capsys):

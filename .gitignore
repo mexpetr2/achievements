@@ -2,6 +2,8 @@
 Elden Ring/
 Cyberpunk 2077/
 
+compose-local.yml
+
 # Python
 __pycache__/
 *.pyc

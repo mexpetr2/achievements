@@ -6,6 +6,7 @@ import sys
 from pathlib import Path
 
 from extractor.export import build_export, write_export
+from extractor.steam_catalog import resolve_catalog_names
 from extractor.steam_paths import (
     SteamNotFoundError,
     discover_games,
@@ -13,8 +14,10 @@ from extractor.steam_paths import (
     pick_account_id,
 )
 
+DEFAULT_CATALOG_CACHE = Path.home() / ".cache" / "achievements-extractor" / "steam_catalog.json"
 
-def main(argv: list[str] | None = None) -> int:
+
+def main(argv: list[str] | None = None, resolve_names=resolve_catalog_names) -> int:
     parser = argparse.ArgumentParser(
         prog="extractor",
         description="Exporte les succes Steam locaux vers un fichier JSON.",
@@ -33,6 +36,21 @@ def main(argv: list[str] | None = None) -> int:
         "--account-id",
         default=None,
         help="Account id Steam3 (detecte automatiquement si absent).",
+    )
+    parser.add_argument(
+        "--no-catalog-lookup",
+        action="store_true",
+        help=(
+            "Desactive la resolution du vrai nom public des jeux via le catalogue "
+            "Steam (store.steampowered.com). Sans cette option, l'extracteur "
+            "l'interroge en best-effort (avec cache local) pour corriger les noms "
+            "peu fiables du cache local Steam (placeholders, noms de code internes)."
+        ),
+    )
+    parser.add_argument(
+        "--catalog-cache",
+        default=str(DEFAULT_CATALOG_CACHE),
+        help=f"Fichier de cache des noms resolus (defaut : {DEFAULT_CATALOG_CACHE}).",
     )
     parser.add_argument("--verbose", action="store_true", help="Affiche les jeux ignores.")
     args = parser.parse_args(argv)
@@ -54,7 +72,12 @@ def main(argv: list[str] | None = None) -> int:
 
         account_id = args.account_id or pick_account_id(stats_dir)
         games = discover_games(stats_dir, account_id)
-        export = build_export(games, account_id)
+
+        catalog_names = {}
+        if not args.no_catalog_lookup:
+            catalog_names = resolve_names([g.appid for g in games], Path(args.catalog_cache))
+
+        export = build_export(games, account_id, catalog_names)
         path = write_export(export, Path(args.output_dir))
     except (SteamNotFoundError, FileNotFoundError, PermissionError, OSError) as error:
         print(f"Echec de l'export : {error}", file=sys.stderr)

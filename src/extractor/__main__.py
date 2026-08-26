@@ -6,10 +6,12 @@ import sys
 from pathlib import Path
 
 from extractor.export import build_export, write_export
+from extractor.library import read_activity
 from extractor.steam_catalog import resolve_catalog_names
 from extractor.steam_paths import (
     SteamNotFoundError,
     discover_games,
+    find_localconfig,
     find_stats_dir,
     pick_account_id,
 )
@@ -78,7 +80,10 @@ def main(argv: list[str] | None = None, resolve_names=resolve_catalog_names) -> 
             lookup = resolve_names([g.appid for g in games], Path(args.catalog_cache))
             catalog_names, not_found_appids = lookup.names, lookup.not_found
 
-        export = build_export(games, account_id, catalog_names, not_found_appids)
+        localconfig = find_localconfig(stats_dir, account_id)
+        activity = read_activity(localconfig) if localconfig else {}
+
+        export = build_export(games, account_id, catalog_names, not_found_appids, activity)
         path = write_export(export, Path(args.output_dir))
     except (SteamNotFoundError, FileNotFoundError, PermissionError, OSError) as error:
         print(f"Echec de l'export : {error}", file=sys.stderr)

@@ -5,9 +5,12 @@ from pathlib import Path
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS games (
-    appid       INTEGER PRIMARY KEY,
-    name        TEXT NOT NULL,
-    updated_at  TEXT NOT NULL
+    appid             INTEGER PRIMARY KEY,
+    name              TEXT NOT NULL,
+    updated_at        TEXT NOT NULL,
+    cover             TEXT,
+    playtime_minutes  INTEGER,
+    last_played       TEXT
 );
 
 CREATE TABLE IF NOT EXISTS achievements (
@@ -45,7 +48,26 @@ def connect(db_path: str | Path) -> sqlite3.Connection:
     return conn
 
 
+# Colonnes ajoutees apres la premiere version : une base creee par une version
+# anterieure doit les recevoir sans perdre ses donnees.
+MIGRATIONS = (
+    ("games", "cover", "TEXT"),
+    ("games", "playtime_minutes", "INTEGER"),
+    ("games", "last_played", "TEXT"),
+)
+
+
+def _migrate(conn: sqlite3.Connection) -> None:
+    """Ajoute les colonnes manquantes aux bases creees avant leur introduction."""
+    for table, column, column_type in MIGRATIONS:
+        existing = {row["name"] for row in conn.execute(f"PRAGMA table_info({table})")}
+        if column not in existing:
+            conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {column_type}")
+    conn.commit()
+
+
 def init_db(conn: sqlite3.Connection) -> None:
-    """Cree les tables si elles n'existent pas."""
+    """Cree les tables si elles n'existent pas, puis applique les migrations."""
     conn.executescript(SCHEMA)
     conn.commit()
+    _migrate(conn)

@@ -6,18 +6,27 @@
   <a href="{{ url_for('index') }}">← Tous les jeux</a>
 </header>
 
-<p class="muted">
-  {{ game.unlocked }} / {{ game.total }} succès — {{ game.percent }} %
-  · mis à jour le {{ game.updated_at[:10] }}
-</p>
-<div class="bar" style="margin-bottom: 1.5rem;">
-  <span style="width: {{ game.percent }}%"></span>
+<div class="card" style="display: flex; gap: 1rem; align-items: center; margin-bottom: 1rem;">
+  {% if game.cover %}
+  <img class="cover" src="{{ game.cover }}" alt="" loading="lazy"
+       style="width: 60px; height: 90px;">
+  {% endif %}
+  <div style="flex: 1;">
+    <p class="muted" style="margin: 0 0 0.35rem;">
+      {{ game.unlocked }} / {{ game.total }} succès — {{ game.percent }} %
+    </p>
+    <p class="muted" style="margin: 0 0 0.5rem;">
+      {{ game.playtime_minutes|playtime }} · joué le {{ game.last_played|date_fr }}
+      · mis à jour le {{ game.updated_at|date_fr }}
+    </p>
+    <div class="bar"><span style="width: {{ game.percent }}%"></span></div>
+  </div>
 </div>
 
-<div class="grid">
+<div class="achievements">
   {% for ach in game.achievements %}
   {% set spoiler = ach.hidden and not ach.unlocked %}
-  <div class="card ach {% if not ach.unlocked %}locked{% endif %}">
+  <div class="ach {% if not ach.unlocked %}locked{% endif %}">
     {% set image = ach.icon if ach.unlocked else (ach.icon_gray or ach.icon) %}
     {% if image and not spoiler %}<img src="{{ image }}" alt="" loading="lazy">{% endif %}
     <div>

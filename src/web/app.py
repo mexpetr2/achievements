@@ -19,7 +19,8 @@ from flask import (
 
 from web.auth import check_password
 from web.db import connect, init_db
-from web.queries import get_game, list_games, recent_unlocks
+from web.formatting import format_date, format_playtime
+from web.queries import get_game, list_games
 from web.watcher import start_watcher
 
 
@@ -75,6 +76,9 @@ def create_app(config: dict | None = None) -> Flask:
     if app.config["START_WATCHER"]:
         start_watcher(setup_conn, Path(app.config["INBOX"]), app.config["SCAN_INTERVAL"])
 
+    app.jinja_env.filters["playtime"] = format_playtime
+    app.jinja_env.filters["date_fr"] = format_date
+
     @app.teardown_appcontext
     def close_conn(_exception):
         conn = g.pop("conn", None)
@@ -103,10 +107,7 @@ def create_app(config: dict | None = None) -> Flask:
     @app.get("/")
     @login_required
     def index():
-        conn = _get_conn()
-        return render_template(
-            "index.html", games=list_games(conn), recent=recent_unlocks(conn, limit=15)
-        )
+        return render_template("index.html", games=list_games(_get_conn()))
 
     @app.get("/game/<int:appid>")
     @login_required
@@ -115,5 +116,18 @@ def create_app(config: dict | None = None) -> Flask:
         if game is None:
             abort(404)
         return render_template("game.html", game=game)
+
+    @app.get("/api/game/<int:appid>")
+    @login_required
+    def game_achievements(appid: int):
+        """Succes d'un jeu, charges a la demande quand on deplie sa ligne.
+
+        Charger les ~6600 succes de la bibliotheque des l'ouverture de la page
+        la rendrait inutilement lourde : on ne recupere que le jeu ouvert.
+        """
+        game = get_game(_get_conn(), appid)
+        if game is None:
+            abort(404)
+        return jsonify(game)
 
     return app

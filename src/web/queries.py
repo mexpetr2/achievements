@@ -7,11 +7,16 @@ SELECT
     g.appid,
     g.name,
     g.updated_at,
+    g.cover,
+    g.playtime_minutes,
+    g.last_played,
     COUNT(a.api_name) AS total,
     COALESCE(SUM(a.unlocked), 0) AS unlocked
 FROM games g
 LEFT JOIN achievements a ON a.appid = g.appid
-GROUP BY g.appid, g.name, g.updated_at
+GROUP BY g.appid, g.name, g.updated_at, g.cover, g.playtime_minutes, g.last_played
+-- Les jeux jamais lances (last_played NULL) ferment la marche.
+ORDER BY g.last_played IS NULL, g.last_played DESC, g.name COLLATE NOCASE
 """
 
 GET_ACHIEVEMENTS = """
@@ -21,58 +26,40 @@ WHERE appid = ?
 ORDER BY unlocked DESC, unlock_time ASC, name COLLATE NOCASE
 """
 
-RECENT_UNLOCKS = """
-SELECT a.appid, a.api_name, a.name, a.icon, a.unlock_time, g.name AS game_name
-FROM achievements a
-JOIN games g ON g.appid = a.appid
-WHERE a.unlocked = 1 AND a.unlock_time IS NOT NULL
-ORDER BY a.unlock_time DESC
-LIMIT ?
+GET_GAME = """
+SELECT appid, name, updated_at, cover, playtime_minutes, last_played
+FROM games
+WHERE appid = ?
 """
 
 
-def list_games(conn: sqlite3.Connection) -> list[dict]:
-    """Liste les jeux avec leur taux de completion, du plus complet au moins complet."""
-    games = []
-    for row in conn.execute(LIST_GAMES):
-        total = row["total"]
-        unlocked = row["unlocked"]
-        games.append(
-            {
-                "appid": row["appid"],
-                "name": row["name"],
-                "updated_at": row["updated_at"],
-                "total": total,
-                "unlocked": unlocked,
-                "percent": round(unlocked * 100 / total) if total else 0,
-            }
-        )
-    games.sort(key=lambda g: (-g["percent"], g["name"].lower()))
-    return games
-
-
-def get_game(conn: sqlite3.Connection, appid: int) -> dict | None:
-    """Retourne un jeu et ses succes, ou None s'il n'existe pas."""
-    row = conn.execute(
-        "SELECT appid, name, updated_at FROM games WHERE appid = ?", (appid,)
-    ).fetchone()
-    if row is None:
-        return None
-
-    achievements = [dict(a) for a in conn.execute(GET_ACHIEVEMENTS, (appid,))]
-    unlocked = sum(a["unlocked"] for a in achievements)
-    total = len(achievements)
+def _summarise(row: sqlite3.Row, total: int, unlocked: int) -> dict:
+    """Champs communs a la liste et au detail d'un jeu."""
     return {
         "appid": row["appid"],
         "name": row["name"],
         "updated_at": row["updated_at"],
+        "cover": row["cover"],
+        "playtime_minutes": row["playtime_minutes"],
+        "last_played": row["last_played"],
         "total": total,
         "unlocked": unlocked,
         "percent": round(unlocked * 100 / total) if total else 0,
-        "achievements": achievements,
     }
 
 
-def recent_unlocks(conn: sqlite3.Connection, limit: int = 20) -> list[dict]:
-    """Retourne les derniers succes debloques, tous jeux confondus."""
-    return [dict(row) for row in conn.execute(RECENT_UNLOCKS, (limit,))]
+def list_games(conn: sqlite3.Connection) -> list[dict]:
+    """Liste les jeux du plus recemment joue au plus ancien."""
+    return [_summarise(row, row["total"], row["unlocked"]) for row in conn.execute(LIST_GAMES)]
+
+
+def get_game(conn: sqlite3.Connection, appid: int) -> dict | None:
+    """Retourne un jeu et ses succes, ou None s'il n'existe pas."""
+    row = conn.execute(GET_GAME, (appid,)).fetchone()
+    if row is None:
+        return None
+
+    achievements = [dict(a) for a in conn.execute(GET_ACHIEVEMENTS, (appid,))]
+    game = _summarise(row, len(achievements), sum(a["unlocked"] for a in achievements))
+    game["achievements"] = achievements
+    return game

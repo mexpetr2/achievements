@@ -2,7 +2,18 @@ import pytest
 
 from web.db import connect, init_db
 from web.ingest import ingest_export
-from web.queries import get_game, list_games, recent_unlocks
+from web.queries import get_game, list_games
+
+
+def _game(appid, name, last_played, playtime=None, achievements=None):
+    return {
+        "appid": appid,
+        "name": name,
+        "cover": f"https://cdn.example/{appid}.jpg",
+        "playtime_minutes": playtime,
+        "last_played": last_played,
+        "achievements": achievements or [],
+    }
 
 
 @pytest.fixture
@@ -14,10 +25,12 @@ def conn(tmp_path):
         {
             "exported_at": "2026-08-24T22:10:00+00:00",
             "games": [
-                {
-                    "appid": 1,
-                    "name": "Jeu A",
-                    "achievements": [
+                _game(
+                    1,
+                    "Jeu A",
+                    "2024-01-01T10:00:00+00:00",
+                    playtime=120,
+                    achievements=[
                         {
                             "api_name": "A1",
                             "name": "Premier",
@@ -26,11 +39,13 @@ def conn(tmp_path):
                         },
                         {"api_name": "A2", "name": "Second", "unlocked": False},
                     ],
-                },
-                {
-                    "appid": 2,
-                    "name": "Jeu B",
-                    "achievements": [
+                ),
+                _game(
+                    2,
+                    "Jeu B",
+                    "2024-06-01T10:00:00+00:00",
+                    playtime=30,
+                    achievements=[
                         {
                             "api_name": "B1",
                             "name": "Unique",
@@ -38,7 +53,7 @@ def conn(tmp_path):
                             "unlock_time": "2024-06-01T10:00:00+00:00",
                         }
                     ],
-                },
+                ),
             ],
         },
     )
@@ -58,15 +73,26 @@ def test_list_games_computes_percentage(conn):
     assert games[2]["percent"] == 100
 
 
-def test_list_games_sorted_by_percentage_desc(conn):
+def test_list_games_sorted_by_last_played_desc(conn):
+    # Jeu B joue en juin, Jeu A en janvier : B passe devant, meme si son
+    # taux de completion n'entre plus en compte dans l'ordre.
     assert [g["appid"] for g in list_games(conn)] == [2, 1]
 
 
+def test_list_games_places_never_played_games_last(conn):
+    ingest_export(conn, {"exported_at": "x", "games": [_game(3, "Jamais joue", None)]})
+    assert [g["appid"] for g in list_games(conn)] == [2, 1, 3]
+
+
+def test_list_games_exposes_cover_and_playtime(conn):
+    games = {g["appid"]: g for g in list_games(conn)}
+    assert games[1]["cover"] == "https://cdn.example/1.jpg"
+    assert games[1]["playtime_minutes"] == 120
+    assert games[1]["last_played"] == "2024-01-01T10:00:00+00:00"
+
+
 def test_list_games_handles_game_without_achievements(conn):
-    ingest_export(
-        conn,
-        {"exported_at": "x", "games": [{"appid": 3, "name": "Vide", "achievements": []}]},
-    )
+    ingest_export(conn, {"exported_at": "x", "games": [_game(3, "Vide", None)]})
     empty = next(g for g in list_games(conn) if g["appid"] == 3)
     assert empty["total"] == 0
     assert empty["percent"] == 0
@@ -78,23 +104,15 @@ def test_get_game_returns_game_with_achievements(conn):
     assert [a["api_name"] for a in game["achievements"]] == ["A1", "A2"]
 
 
+def test_get_game_exposes_cover_and_playtime(conn):
+    game = get_game(conn, 1)
+    assert game["cover"] == "https://cdn.example/1.jpg"
+    assert game["playtime_minutes"] == 120
+
+
 def test_get_game_lists_unlocked_before_locked(conn):
     assert [a["unlocked"] for a in get_game(conn, 1)["achievements"]] == [1, 0]
 
 
 def test_get_game_returns_none_for_unknown_appid(conn):
     assert get_game(conn, 404) is None
-
-
-def test_recent_unlocks_returns_newest_first_across_games(conn):
-    rows = recent_unlocks(conn, limit=10)
-    assert [r["api_name"] for r in rows] == ["B1", "A1"]
-    assert rows[0]["game_name"] == "Jeu B"
-
-
-def test_recent_unlocks_respects_limit(conn):
-    assert len(recent_unlocks(conn, limit=1)) == 1
-
-
-def test_recent_unlocks_excludes_locked_achievements(conn):
-    assert all(r["api_name"] != "A2" for r in recent_unlocks(conn, limit=10))

@@ -6,6 +6,7 @@ import os
 from datetime import UTC, datetime
 from pathlib import Path
 
+from extractor.library import GameActivity
 from extractor.schema import parse_schema
 from extractor.steam_paths import GameFiles
 from extractor.userstats import parse_userstats
@@ -13,6 +14,9 @@ from extractor.userstats import parse_userstats
 logger = logging.getLogger(__name__)
 
 CDN_BASE = "https://cdn.cloudflare.steamstatic.com/steamcommunity/public/images/apps"
+
+# Jaquette verticale de la bibliotheque Steam (format 600x900).
+LIBRARY_ART_BASE = "https://cdn.cloudflare.steamstatic.com/steam/apps"
 
 # Un account id Steam3 devient un SteamID64 en ajoutant cette base.
 STEAMID64_BASE = 76561197960265728
@@ -23,13 +27,25 @@ def icon_url(appid: int, icon: str) -> str:
     return f"{CDN_BASE}/{appid}/{icon}" if icon else ""
 
 
-def build_game_export(game: GameFiles, catalog_name: str | None = None) -> dict:
+def cover_url(appid: int) -> str:
+    """Construit l'URL CDN de la jaquette verticale du jeu."""
+    return f"{LIBRARY_ART_BASE}/{appid}/library_600x900.jpg"
+
+
+def build_game_export(
+    game: GameFiles,
+    catalog_name: str | None = None,
+    activity: GameActivity | None = None,
+) -> dict:
     """Fusionne definitions et etat de deblocage pour un jeu.
 
     `catalog_name` (nom public resolu via le catalogue Steam, voir
     steam_catalog.py) est prefere au `gamename` du schema local quand
     disponible : ce dernier est parfois un nom de code interne au studio
     (ex. "Popsicle" pour Marvel's Spider-Man 2) ou un placeholder Valve.
+
+    `activity` (voir library.py) porte le temps de jeu et la date de derniere
+    partie. Absent pour les jeux que Steam n'a jamais vu tourner localement.
     """
     schema = parse_schema(game.schema_path.read_bytes(), appid=game.appid)
     unlocks = parse_userstats(game.stats_path.read_bytes())
@@ -55,7 +71,19 @@ def build_game_export(game: GameFiles, catalog_name: str | None = None) -> dict:
             }
         )
 
-    return {"appid": game.appid, "name": catalog_name or schema.name, "achievements": achievements}
+    last_played = activity.last_played if activity else None
+    return {
+        "appid": game.appid,
+        "name": catalog_name or schema.name,
+        "cover": cover_url(game.appid),
+        "playtime_minutes": activity.playtime_minutes if activity else None,
+        "last_played": (
+            datetime.fromtimestamp(last_played, tz=UTC).isoformat()
+            if last_played is not None
+            else None
+        ),
+        "achievements": achievements,
+    }
 
 
 def build_export(
@@ -63,6 +91,7 @@ def build_export(
     account_id: str,
     catalog_names: dict[int, str] | None = None,
     not_found_appids: set[int] | None = None,
+    activity: dict[int, GameActivity] | None = None,
 ) -> dict:
     """Construit l'export complet, en sautant les jeux illisibles.
 
@@ -70,13 +99,18 @@ def build_export(
     de test internes, ou jeux fermes depuis). Un jeu de cet ensemble n'est
     exclu de l'export que s'il n'a par ailleurs aucun succes debloque : un
     jeu ferme mais reellement joue garde ses succes reels visibles.
+
+    `activity` : temps de jeu et derniere partie par appid (voir library.py).
     """
     catalog_names = catalog_names or {}
     not_found_appids = not_found_appids or set()
+    activity = activity or {}
     exported_games = []
     for game in games:
         try:
-            game_export = build_game_export(game, catalog_names.get(game.appid))
+            game_export = build_game_export(
+                game, catalog_names.get(game.appid), activity.get(game.appid)
+            )
         except Exception as error:  # noqa: BLE001 - un jeu casse ne doit pas tout arreter
             logger.warning("jeu %s ignore : %s: %s", game.appid, type(error).__name__, error)
             continue

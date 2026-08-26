@@ -3,6 +3,7 @@ import pytest
 from extractor.steam_paths import (
     SteamNotFoundError,
     discover_games,
+    find_localconfig,
     find_stats_dir,
     pick_account_id,
 )
@@ -68,3 +69,28 @@ def test_discover_games_sorted_by_appid(tmp_path):
         _touch(tmp_path / f"UserGameStatsSchema_{appid}.bin")
         _touch(tmp_path / f"UserGameStats_555_{appid}.bin")
     assert [g.appid for g in discover_games(tmp_path, account_id="555")] == [100, 200, 300]
+
+
+def test_find_localconfig_resolves_path_relative_to_steam_root(tmp_path):
+    # stats_dir vaut <steam>/appcache/stats ; localconfig vit dans
+    # <steam>/userdata/<account>/config/localconfig.vdf
+    stats = tmp_path / "Steam" / "appcache" / "stats"
+    stats.mkdir(parents=True)
+    expected = tmp_path / "Steam" / "userdata" / "555" / "config" / "localconfig.vdf"
+    _touch(expected)
+
+    assert find_localconfig(stats, account_id="555") == expected
+
+
+def test_find_localconfig_returns_none_when_absent(tmp_path):
+    stats = tmp_path / "Steam" / "appcache" / "stats"
+    stats.mkdir(parents=True)
+    assert find_localconfig(stats, account_id="555") is None
+
+
+def test_find_localconfig_returns_none_for_other_account(tmp_path):
+    stats = tmp_path / "Steam" / "appcache" / "stats"
+    stats.mkdir(parents=True)
+    _touch(tmp_path / "Steam" / "userdata" / "999" / "config" / "localconfig.vdf")
+
+    assert find_localconfig(stats, account_id="555") is None

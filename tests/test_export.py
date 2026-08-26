@@ -3,7 +3,14 @@ from datetime import UTC, datetime
 
 import pytest
 
-from extractor.export import build_export, build_game_export, icon_url, write_export
+from extractor.export import (
+    build_export,
+    build_game_export,
+    cover_url,
+    icon_url,
+    write_export,
+)
+from extractor.library import GameActivity
 from extractor.steam_paths import GameFiles
 from tests.fixtures.build_fixtures import build_schema_bin, build_userstats_bin
 
@@ -83,6 +90,37 @@ def test_build_game_export_includes_name_and_appid(tmp_path):
     assert result["name"] == "Elden Ring"
 
 
+def test_cover_url_builds_steam_library_art_path():
+    assert cover_url(1245620) == (
+        "https://cdn.cloudflare.steamstatic.com/steam/apps/1245620/library_600x900.jpg"
+    )
+
+
+def test_build_game_export_includes_cover_url(tmp_path):
+    result = build_game_export(_write_game(tmp_path))
+    assert result["cover"] == cover_url(1245620)
+
+
+def test_build_game_export_includes_activity_when_known(tmp_path):
+    activity = GameActivity(playtime_minutes=27066, last_played=1775462400)
+    result = build_game_export(_write_game(tmp_path), activity=activity)
+    assert result["playtime_minutes"] == 27066
+    assert result["last_played"] == datetime.fromtimestamp(1775462400, tz=UTC).isoformat()
+
+
+def test_build_game_export_sets_null_activity_when_unknown(tmp_path):
+    result = build_game_export(_write_game(tmp_path), activity=None)
+    assert result["playtime_minutes"] is None
+    assert result["last_played"] is None
+
+
+def test_build_game_export_handles_partial_activity(tmp_path):
+    activity = GameActivity(playtime_minutes=42, last_played=None)
+    result = build_game_export(_write_game(tmp_path), activity=activity)
+    assert result["playtime_minutes"] == 42
+    assert result["last_played"] is None
+
+
 def test_build_game_export_prefers_catalog_name_over_schema_name(tmp_path):
     game = _write_game(tmp_path)
     result = build_game_export(game, catalog_name="Nom public officiel")
@@ -149,6 +187,24 @@ def test_build_export_keeps_not_found_game_with_at_least_one_unlock(tmp_path):
 
     assert [g["appid"] for g in export["games"]] == [200110]
     assert export["games"][0]["name"] == "Elden Ring"  # repli sur le nom local du schema
+
+
+def test_build_export_passes_activity_through_by_appid(tmp_path):
+    game = _write_game(tmp_path, appid=1245620)
+    activity = {1245620: GameActivity(playtime_minutes=900, last_played=1775462400)}
+
+    export = build_export([game], account_id="555", activity=activity)
+
+    assert export["games"][0]["playtime_minutes"] == 900
+
+
+def test_build_export_leaves_activity_null_for_appid_without_data(tmp_path):
+    game = _write_game(tmp_path, appid=1245620)
+
+    export = build_export([game], account_id="555", activity={999: GameActivity(1, 2)})
+
+    assert export["games"][0]["playtime_minutes"] is None
+    assert export["games"][0]["last_played"] is None
 
 
 def test_build_export_keeps_game_with_zero_unlocks_when_not_in_not_found_set(tmp_path):

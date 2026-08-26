@@ -11,11 +11,15 @@ class InvalidExportError(ValueError):
 
 
 UPSERT_GAME = """
-INSERT INTO games (appid, name, updated_at)
-VALUES (:appid, :name, :updated_at)
+INSERT INTO games (appid, name, updated_at, cover, playtime_minutes, last_played)
+VALUES (:appid, :name, :updated_at, :cover, :playtime_minutes, :last_played)
 ON CONFLICT(appid) DO UPDATE SET
     name = excluded.name,
-    updated_at = excluded.updated_at
+    updated_at = excluded.updated_at,
+    cover = excluded.cover,
+    -- Un export plus ancien ou incomplet ne doit pas effacer une valeur connue.
+    playtime_minutes = COALESCE(excluded.playtime_minutes, games.playtime_minutes),
+    last_played = COALESCE(excluded.last_played, games.last_played)
 """
 
 # Un succes debloque le reste : on ne repasse jamais unlocked de 1 a 0.
@@ -52,12 +56,16 @@ def ingest_export(conn: sqlite3.Connection, payload: dict) -> dict:
                     raise InvalidExportError("export invalide : jeu sans appid entier")
 
                 appid = game["appid"]
+                playtime = game.get("playtime_minutes")
                 conn.execute(
                     UPSERT_GAME,
                     {
                         "appid": appid,
                         "name": str(game.get("name") or f"App {appid}"),
                         "updated_at": updated_at,
+                        "cover": str(game.get("cover") or ""),
+                        "playtime_minutes": playtime if isinstance(playtime, int) else None,
+                        "last_played": game.get("last_played") or None,
                     },
                 )
                 game_count += 1

@@ -38,6 +38,17 @@ def find_stats_dir(candidates: list[Path] | None = None) -> Path:
     )
 
 
+def find_localconfig(stats_dir: Path, account_id: str) -> Path | None:
+    """Retourne le localconfig.vdf du compte, ou None s'il n'existe pas.
+
+    `stats_dir` vaut <steam>/appcache/stats ; le fichier recherche se trouve
+    dans <steam>/userdata/<account_id>/config/localconfig.vdf.
+    """
+    steam_root = Path(stats_dir).parent.parent
+    candidate = steam_root / "userdata" / str(account_id) / "config" / "localconfig.vdf"
+    return candidate if candidate.is_file() else None
+
+
 def pick_account_id(stats_dir: Path) -> str:
     """Retourne l'account id Steam3 possedant le plus de jeux dans ce dossier."""
     counts: dict[str, int] = {}

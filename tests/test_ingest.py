@@ -70,6 +70,58 @@ def test_ingest_export_never_relocks_an_unlocked_achievement(conn):
     assert row["unlock_time"] == "2024-03-12T18:44:00+00:00"
 
 
+def test_ingest_export_stores_cover_playtime_and_last_played(conn):
+    payload = _export()
+    payload["games"][0].update(
+        {
+            "cover": "https://cdn.example/library_600x900.jpg",
+            "playtime_minutes": 27066,
+            "last_played": "2026-04-06T10:00:00+00:00",
+        }
+    )
+
+    ingest_export(conn, payload)
+
+    row = conn.execute("SELECT * FROM games").fetchone()
+    assert row["cover"] == "https://cdn.example/library_600x900.jpg"
+    assert row["playtime_minutes"] == 27066
+    assert row["last_played"] == "2026-04-06T10:00:00+00:00"
+
+
+def test_ingest_export_accepts_game_without_activity_fields(conn):
+    ingest_export(conn, _export())  # payload sans cover/playtime/last_played
+
+    row = conn.execute("SELECT * FROM games").fetchone()
+    assert row["playtime_minutes"] is None
+    assert row["last_played"] is None
+
+
+def test_ingest_export_does_not_erase_known_activity_with_a_null(conn):
+    payload = _export()
+    payload["games"][0].update(
+        {"playtime_minutes": 500, "last_played": "2026-01-01T00:00:00+00:00"}
+    )
+    ingest_export(conn, payload)
+
+    # Export suivant sans ces champs : les valeurs connues doivent survivre.
+    ingest_export(conn, _export())
+
+    row = conn.execute("SELECT * FROM games").fetchone()
+    assert row["playtime_minutes"] == 500
+    assert row["last_played"] == "2026-01-01T00:00:00+00:00"
+
+
+def test_ingest_export_updates_playtime_when_a_newer_value_arrives(conn):
+    payload = _export()
+    payload["games"][0]["playtime_minutes"] = 500
+    ingest_export(conn, payload)
+
+    payload["games"][0]["playtime_minutes"] = 620
+    ingest_export(conn, payload)
+
+    assert conn.execute("SELECT playtime_minutes FROM games").fetchone()[0] == 620
+
+
 def test_ingest_export_rejects_payload_without_games_list(conn):
     with pytest.raises(InvalidExportError, match="games"):
         ingest_export(conn, {"exported_at": "x"})

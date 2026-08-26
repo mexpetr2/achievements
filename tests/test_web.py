@@ -87,6 +87,42 @@ def test_index_shows_completion_percentage(logged_in):
     assert "50" in body
 
 
+def test_index_has_a_search_field(logged_in):
+    body = logged_in.get("/").get_data(as_text=True)
+    assert 'id="recherche"' in body
+
+
+def test_index_uses_the_french_plural_of_jeu(logged_in):
+    body = logged_in.get("/").get_data(as_text=True)
+    assert "jeus" not in body
+
+
+def test_index_no_longer_shows_recent_unlocks_section(logged_in):
+    body = logged_in.get("/").get_data(as_text=True)
+    assert "Derniers débloqués" not in body
+
+
+def test_index_does_not_inline_achievement_details(logged_in):
+    # Les succes sont charges a la demande : la liste ne doit pas les contenir.
+    body = logged_in.get("/").get_data(as_text=True)
+    assert "Obtenu le Cercle d&#39;Elden." not in body
+    assert "Obtenu le Cercle d'Elden." not in body
+
+
+def test_api_game_returns_achievements_as_json(logged_in):
+    payload = logged_in.get("/api/game/1245620").get_json()
+    assert payload["name"] == "Elden Ring"
+    assert [a["api_name"] for a in payload["achievements"]] == ["ACH01", "ACH02"]
+
+
+def test_api_game_requires_login(client):
+    assert client.get("/api/game/1245620").status_code == 302
+
+
+def test_api_game_returns_404_for_unknown_appid(logged_in):
+    assert logged_in.get("/api/game/999999").status_code == 404
+
+
 def test_game_page_shows_unlocked_and_locked_achievements(logged_in):
     body = logged_in.get("/game/1245620").get_data(as_text=True)
     assert "Seigneur d&#39;Elden" in body or "Seigneur d'Elden" in body

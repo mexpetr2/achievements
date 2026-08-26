@@ -8,32 +8,115 @@
   </form>
 </header>
 
-{% if recent %}
-<h2 style="font-size: 1.1rem;">Derniers débloqués</h2>
-<div class="grid" style="margin-bottom: 2rem;">
-  {% for item in recent %}
-  <div class="card ach">
-    {% if item.icon %}<img src="{{ item.icon }}" alt="" loading="lazy">{% endif %}
-    <div>
-      <strong>{{ item.name }}</strong>
-      <div class="muted">{{ item.game_name }}</div>
-      <div class="muted">{{ item.unlock_time[:10] }}</div>
-    </div>
-  </div>
-  {% endfor %}
-</div>
-{% endif %}
+<p style="margin: 0 0 1rem;">
+  <input type="search" id="recherche" placeholder="Rechercher un jeu…"
+         autocomplete="off" aria-label="Rechercher un jeu">
+</p>
 
-<h2 style="font-size: 1.1rem;">Jeux ({{ games|length }})</h2>
-<div class="grid">
+<p class="muted" id="compteur" data-total="{{ games|length }}">
+  {{ games|length }} jeu{{ 'x' if games|length > 1 }}
+</p>
+
+<ul class="games" id="liste">
   {% for game in games %}
-  <a class="card" href="{{ url_for('game_detail', appid=game.appid) }}">
-    <strong>{{ game.name }}</strong>
-    <div class="muted">{{ game.unlocked }} / {{ game.total }} — {{ game.percent }} %</div>
-    <div class="bar"><span style="width: {{ game.percent }}%"></span></div>
-  </a>
+  <li class="game" data-appid="{{ game.appid }}" data-nom="{{ game.name|lower }}">
+    <button type="button" class="row" aria-expanded="false"
+            aria-controls="details-{{ game.appid }}">
+      {% if game.cover %}
+      <img class="cover" src="{{ game.cover }}" alt="" loading="lazy">
+      {% else %}
+      <span class="cover"></span>
+      {% endif %}
+      <span>
+        <span class="title">{{ game.name }}</span>
+        <span class="muted">
+          {{ game.playtime_minutes|playtime }} · joué le {{ game.last_played|date_fr }}
+        </span>
+      </span>
+      <span class="progress">
+        <span class="counts muted">
+          {{ game.unlocked }} / {{ game.total }} — {{ game.percent }} %
+        </span>
+        <span class="bar"><span style="width: {{ game.percent }}%"></span></span>
+      </span>
+      <span class="chevron" aria-hidden="true">›</span>
+    </button>
+    <div class="details" id="details-{{ game.appid }}" hidden></div>
+  </li>
   {% else %}
-  <p class="muted">Aucun jeu importé pour l'instant.</p>
+  <li class="game empty">Aucun jeu importé pour l'instant.</li>
   {% endfor %}
-</div>
+</ul>
+
+<script>
+  // Recherche : filtrage local, la bibliothèque tient largement en mémoire.
+  const recherche = document.getElementById('recherche');
+  const compteur = document.getElementById('compteur');
+  const jeux = Array.from(document.querySelectorAll('.game[data-nom]'));
+
+  recherche.addEventListener('input', () => {
+    const terme = recherche.value.trim().toLowerCase();
+    let visibles = 0;
+    for (const jeu of jeux) {
+      const correspond = !terme || jeu.dataset.nom.includes(terme);
+      jeu.hidden = !correspond;
+      if (correspond) visibles++;
+    }
+    compteur.textContent = `${visibles} jeu${visibles > 1 ? 'x' : ''}`
+      + (terme ? ` sur ${compteur.dataset.total}` : '');
+  });
+
+  // Dépliage : les succès sont chargés à la demande, puis conservés.
+  const echapper = (texte) => {
+    const noeud = document.createElement('div');
+    noeud.textContent = texte ?? '';
+    return noeud.innerHTML;
+  };
+
+  const carteSucces = (succes) => {
+    const verrouille = !succes.unlocked;
+    const cache = succes.hidden && verrouille;
+    const image = verrouille ? (succes.icon_gray || succes.icon) : succes.icon;
+    const titre = cache ? 'Succès caché' : echapper(succes.name);
+    const detail = cache
+      ? 'Se révèle une fois débloqué.'
+      : echapper(succes.description || '');
+    const date = (!cache && succes.unlocked && succes.unlock_time)
+      ? `<div class="muted">Débloqué le ${echapper(succes.unlock_time.slice(0, 10))}</div>`
+      : '';
+    return `<div class="ach ${verrouille ? 'locked' : ''}">
+      ${image && !cache ? `<img src="${echapper(image)}" alt="" loading="lazy">` : ''}
+      <div>
+        <strong>${titre}</strong>
+        ${detail ? `<div class="muted">${detail}</div>` : ''}
+        ${date}
+      </div>
+    </div>`;
+  };
+
+  for (const jeu of jeux) {
+    const bouton = jeu.querySelector('.row');
+    const details = jeu.querySelector('.details');
+
+    bouton.addEventListener('click', async () => {
+      const ouvert = bouton.getAttribute('aria-expanded') === 'true';
+      bouton.setAttribute('aria-expanded', String(!ouvert));
+      details.hidden = ouvert;
+      if (ouvert || details.dataset.charge) return;
+
+      details.innerHTML = '<p class="muted">Chargement…</p>';
+      try {
+        const reponse = await fetch(`/api/game/${jeu.dataset.appid}`);
+        if (!reponse.ok) throw new Error(reponse.status);
+        const jeuComplet = await reponse.json();
+        details.innerHTML = jeuComplet.achievements.length
+          ? `<div class="achievements">${jeuComplet.achievements.map(carteSucces).join('')}</div>`
+          : '<p class="muted">Ce jeu n\'a aucun succès enregistré.</p>';
+        details.dataset.charge = '1';
+      } catch {
+        details.innerHTML = '<p class="error">Impossible de charger les succès.</p>';
+      }
+    });
+  }
+</script>
 {% endblock %}

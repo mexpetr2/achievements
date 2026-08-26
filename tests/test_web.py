@@ -97,6 +97,20 @@ def test_index_uses_the_french_plural_of_jeu(logged_in):
     assert "jeus" not in body
 
 
+def test_progress_bar_is_block_level_so_it_is_actually_visible(logged_in):
+    # La barre est un <span> dans la liste : sans display:block elle reste
+    # inline, ignore sa hauteur et se rend en 0 pixel (bug constate).
+    body = logged_in.get("/").get_data(as_text=True)
+    regle = body.split(".bar {", 1)[1].split("}", 1)[0]
+    assert "display: block" in regle
+
+
+def test_index_renders_a_progress_bar_per_game(logged_in):
+    body = logged_in.get("/").get_data(as_text=True)
+    assert body.count('class="bar"') == 1  # un jeu dans la fixture
+    assert "width: 50%" in body
+
+
 def test_index_no_longer_shows_recent_unlocks_section(logged_in):
     body = logged_in.get("/").get_data(as_text=True)
     assert "Derniers débloqués" not in body

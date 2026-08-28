@@ -125,6 +125,52 @@ def test_main_keeps_games_confirmed_absent_from_store_but_with_real_unlocks(tmp_
     assert [g["appid"] for g in payload["games"]] == [1245620]
 
 
+def test_main_prefers_playnite_playtime_over_steam(tmp_path):
+    stats = _fake_stats_dir(tmp_path)
+    out = tmp_path / "partage"
+    out.mkdir()
+    playnite = tmp_path / "playnite.json"
+    playnite.write_text(
+        json.dumps({"games": {"1245620": {"playtime_minutes": 8880}}}), encoding="utf-8"
+    )
+
+    code = main(
+        [
+            "--stats-dir",
+            str(stats),
+            "--output-dir",
+            str(out),
+            "--no-catalog-lookup",
+            "--playnite",
+            str(playnite),
+        ]
+    )
+
+    assert code == 0
+    payload = json.loads(next(out.glob("succes_*.json")).read_text(encoding="utf-8"))
+    assert payload["games"][0]["playtime_minutes"] == 8880
+
+
+def test_main_survives_an_unreadable_playnite_file(tmp_path):
+    stats = _fake_stats_dir(tmp_path)
+    out = tmp_path / "partage"
+    out.mkdir()
+
+    code = main(
+        [
+            "--stats-dir",
+            str(stats),
+            "--output-dir",
+            str(out),
+            "--no-catalog-lookup",
+            "--playnite",
+            str(tmp_path / "absent.json"),
+        ]
+    )
+
+    assert code == 0  # l'extraction des succes reste prioritaire
+
+
 def test_main_reports_missing_output_dir(tmp_path, capsys):
     stats = _fake_stats_dir(tmp_path)
     code = main(

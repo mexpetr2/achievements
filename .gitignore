@@ -22,5 +22,9 @@ exports/
 # Packaging
 *.egg-info/
 
+# Artefacts de compilation .NET (extension Playnite)
+bin/
+obj/
+
 # Secrets de deploiement
 .env

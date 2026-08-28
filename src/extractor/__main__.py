@@ -7,6 +7,7 @@ from pathlib import Path
 
 from extractor.export import build_export, write_export
 from extractor.library import read_activity
+from extractor.playnite import merge_activity, read_playnite_activity
 from extractor.steam_catalog import resolve_catalog_names
 from extractor.steam_paths import (
     SteamNotFoundError,
@@ -54,6 +55,15 @@ def main(argv: list[str] | None = None, resolve_names=resolve_catalog_names) -> 
         default=str(DEFAULT_CATALOG_CACHE),
         help=f"Fichier de cache des noms resolus (defaut : {DEFAULT_CATALOG_CACHE}).",
     )
+    parser.add_argument(
+        "--playnite",
+        default=None,
+        help=(
+            "Fichier JSON de temps de jeu exporte par l'extension Playnite. "
+            "Ces temps priment sur ceux de Steam, qui ne comptent que les "
+            "parties lancees via le client Steam."
+        ),
+    )
     parser.add_argument("--verbose", action="store_true", help="Affiche les jeux ignores.")
     args = parser.parse_args(argv)
 
@@ -82,6 +92,8 @@ def main(argv: list[str] | None = None, resolve_names=resolve_catalog_names) -> 
 
         localconfig = find_localconfig(stats_dir, account_id)
         activity = read_activity(localconfig) if localconfig else {}
+        if args.playnite:
+            activity = merge_activity(activity, read_playnite_activity(Path(args.playnite)))
 
         export = build_export(games, account_id, catalog_names, not_found_appids, activity)
         path = write_export(export, Path(args.output_dir))

@@ -131,7 +131,7 @@ def test_api_game_exposes_global_percent(logged_in):
     assert par_nom["ACH02"]["global_percent"] is None
 
 
-def test_hidden_locked_achievement_shows_a_placeholder_instead_of_a_blank(tmp_path):
+def test_hidden_locked_achievement_shows_the_grey_icon_but_hides_its_text(tmp_path):
     db_path = tmp_path / "cache.db"
     conn = connect(db_path)
     init_db(conn)
@@ -147,6 +147,7 @@ def test_hidden_locked_achievement_shows_a_placeholder_instead_of_a_blank(tmp_pa
                         {
                             "api_name": "SECRET",
                             "name": "La fin secrete",
+                            "description": "Vous avez trahi tout le monde.",
                             "icon": "https://cdn.example/a.jpg",
                             "icon_gray": "https://cdn.example/a_gray.jpg",
                             "hidden": True,
@@ -173,9 +174,12 @@ def test_hidden_locked_achievement_shows_a_placeholder_instead_of_a_blank(tmp_pa
 
     body = client.get("/game/42").get_data(as_text=True)
 
-    assert 'class="cachee"' in body  # un marqueur, pas un trou
-    assert "cdn.example/a.jpg" not in body  # l'illustration reste masquee
-    assert "cdn.example/a_gray.jpg" not in body
+    # Comme sur Steam : la vignette grisee s'affiche...
+    assert "cdn.example/a_gray.jpg" in body
+    # ...mais le nom et la description restent masques jusqu'au deblocage.
+    assert "La fin secrete" not in body
+    assert "Vous avez trahi tout le monde." not in body
+    assert "Succès caché" in body
 
 
 def test_game_page_shows_rarity(logged_in):

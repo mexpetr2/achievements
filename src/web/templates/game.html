@@ -27,12 +27,10 @@
   {% for ach in game.achievements %}
   {% set spoiler = ach.hidden and not ach.unlocked %}
   <div class="ach {% if not ach.unlocked %}locked{% endif %}">
+    {# Comme sur Steam : la vignette grisee reste visible, seul le texte du
+       succes cache est masque jusqu'au deblocage. #}
     {% set image = ach.icon if ach.unlocked else (ach.icon_gray or ach.icon) %}
-    {% if spoiler %}
-    <span class="cachee" aria-hidden="true">?</span>
-    {% elif image %}
-    <img src="{{ image }}" alt="" loading="lazy">
-    {% endif %}
+    {% if image %}<img src="{{ image }}" alt="" loading="lazy">{% endif %}
     <div>
       {% if spoiler %}
       <strong>Succès caché</strong>

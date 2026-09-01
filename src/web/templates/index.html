@@ -82,6 +82,8 @@
 
   const carteSucces = (succes) => {
     const verrouille = !succes.unlocked;
+    // Comme sur Steam : la vignette grisee reste visible, seul le texte du
+    // succes cache est masque jusqu'au deblocage.
     const cache = succes.hidden && verrouille;
     const image = verrouille ? (succes.icon_gray || succes.icon) : succes.icon;
     const titre = cache ? 'Succès caché' : echapper(succes.name);
@@ -98,9 +100,7 @@
         + `${formaterRarete(succes.global_percent)}</div>`
       : '';
     return `<div class="ach ${verrouille ? 'locked' : ''}">
-      ${cache
-        ? '<span class="cachee" aria-hidden="true">?</span>'
-        : (image ? `<img src="${echapper(image)}" alt="" loading="lazy">` : '')}
+      ${image ? `<img src="${echapper(image)}" alt="" loading="lazy">` : ''}
       <div>
         <strong>${titre}</strong>
         ${detail ? `<div class="muted">${detail}</div>` : ''}

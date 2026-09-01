@@ -28,7 +28,11 @@
   {% set spoiler = ach.hidden and not ach.unlocked %}
   <div class="ach {% if not ach.unlocked %}locked{% endif %}">
     {% set image = ach.icon if ach.unlocked else (ach.icon_gray or ach.icon) %}
-    {% if image and not spoiler %}<img src="{{ image }}" alt="" loading="lazy">{% endif %}
+    {% if spoiler %}
+    <span class="cachee" aria-hidden="true">?</span>
+    {% elif image %}
+    <img src="{{ image }}" alt="" loading="lazy">
+    {% endif %}
     <div>
       {% if spoiler %}
       <strong>Succès caché</strong>

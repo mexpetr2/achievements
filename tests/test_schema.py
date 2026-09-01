@@ -63,6 +63,22 @@ def test_parse_schema_falls_back_to_english_when_french_missing():
     assert ach.name == "Elden Lord"
 
 
+def test_parse_schema_decodes_html_entities_in_labels():
+    # Certains studios publient des entites HTML brutes dans leurs libelles.
+    ach = dict(ACH_A, french="Je fais peur&nbsp;?", desc_french="Tuer 10 ennemis &amp; survivre")
+    raw = build_schema_bin(1245620, "Un jeu", [ach])
+
+    resultat = parse_schema(raw, appid=1245620).achievements[("1", 1)]
+
+    assert resultat.name == "Je fais peur ?"  # &nbsp; devient une espace insecable
+    assert resultat.description == "Tuer 10 ennemis & survivre"
+
+
+def test_parse_schema_leaves_plain_labels_untouched():
+    raw = build_schema_bin(1245620, "Un jeu", [ACH_A])
+    assert parse_schema(raw, appid=1245620).achievements[("1", 1)].name == "Seigneur d'Elden"
+
+
 def test_parse_schema_marks_hidden_achievements():
     raw = build_schema_bin(1245620, "Elden Ring", [ACH_A, ACH_B])
     achievements = parse_schema(raw, appid=1245620).achievements

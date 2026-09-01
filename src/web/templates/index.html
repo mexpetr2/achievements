@@ -98,7 +98,9 @@
         + `${formaterRarete(succes.global_percent)}</div>`
       : '';
     return `<div class="ach ${verrouille ? 'locked' : ''}">
-      ${image && !cache ? `<img src="${echapper(image)}" alt="" loading="lazy">` : ''}
+      ${cache
+        ? '<span class="cachee" aria-hidden="true">?</span>'
+        : (image ? `<img src="${echapper(image)}" alt="" loading="lazy">` : '')}
       <div>
         <strong>${titre}</strong>
         ${detail ? `<div class="muted">${detail}</div>` : ''}

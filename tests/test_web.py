@@ -131,6 +131,53 @@ def test_api_game_exposes_global_percent(logged_in):
     assert par_nom["ACH02"]["global_percent"] is None
 
 
+def test_hidden_locked_achievement_shows_a_placeholder_instead_of_a_blank(tmp_path):
+    db_path = tmp_path / "cache.db"
+    conn = connect(db_path)
+    init_db(conn)
+    ingest_export(
+        conn,
+        {
+            "exported_at": "2026-08-24T22:10:00+00:00",
+            "games": [
+                {
+                    "appid": 42,
+                    "name": "Jeu",
+                    "achievements": [
+                        {
+                            "api_name": "SECRET",
+                            "name": "La fin secrete",
+                            "icon": "https://cdn.example/a.jpg",
+                            "icon_gray": "https://cdn.example/a_gray.jpg",
+                            "hidden": True,
+                            "unlocked": False,
+                        }
+                    ],
+                }
+            ],
+        },
+    )
+    conn.close()
+
+    app = create_app(
+        {
+            "DATABASE": str(db_path),
+            "PASSWORD_HASH": hash_password(PASSWORD),
+            "SECRET_KEY": "cle-de-test",
+            "TESTING": True,
+            "START_WATCHER": False,
+        }
+    )
+    client = app.test_client()
+    client.post("/login", data={"password": PASSWORD})
+
+    body = client.get("/game/42").get_data(as_text=True)
+
+    assert 'class="cachee"' in body  # un marqueur, pas un trou
+    assert "cdn.example/a.jpg" not in body  # l'illustration reste masquee
+    assert "cdn.example/a_gray.jpg" not in body
+
+
 def test_game_page_shows_rarity(logged_in):
     body = logged_in.get("/game/1245620").get_data(as_text=True)
     assert "10,4 % des joueurs" in body

@@ -1,5 +1,6 @@
 """Lecture des definitions de succes depuis UserGameStatsSchema_<appid>.bin."""
 
+import html
 import re
 from dataclasses import dataclass
 
@@ -34,13 +35,18 @@ class GameSchema:
 
 
 def _pick_language(block: object) -> str:
-    """Retourne le libelle dans la premiere langue disponible."""
+    """Retourne le libelle dans la premiere langue disponible.
+
+    Les libelles publies par certains studios contiennent des entites HTML
+    brutes ("Je fais peur&nbsp;?") : on les decode ici, a la source, pour que
+    tout l'aval manipule du texte lisible.
+    """
     if not isinstance(block, dict):
         return ""
     for language in LANGUAGES:
         value = block.get(language)
         if value:
-            return str(value)
+            return html.unescape(str(value))
     return ""
 
 

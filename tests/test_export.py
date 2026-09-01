@@ -51,9 +51,10 @@ def _write_game(tmp_path, appid=1245620, account="555", achievements=(ACH_A, ACH
 
 
 def test_icon_url_builds_steam_cdn_path():
+    # Chemin community_assets : l'ancien steamcommunity/public ne sert plus les
+    # icones recemment ajoutees (constate sur Palworld).
     assert icon_url(1245620, "aaa111.jpg") == (
-        "https://cdn.cloudflare.steamstatic.com/steamcommunity/public/images/apps/"
-        "1245620/aaa111.jpg"
+        "https://shared.akamai.steamstatic.com/community_assets/images/apps/1245620/aaa111.jpg"
     )
 
 

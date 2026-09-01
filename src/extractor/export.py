@@ -13,7 +13,11 @@ from extractor.userstats import parse_userstats
 
 logger = logging.getLogger(__name__)
 
-CDN_BASE = "https://cdn.cloudflare.steamstatic.com/steamcommunity/public/images/apps"
+# Icones de succes. L'ancien chemin (steamcommunity/public/images/apps) ne sert
+# plus les icones ajoutees recemment : sur Palworld, 20 succes sur 75 y
+# repondaient 404, tous parmi les plus recents. C'est ce chemin que Steam
+# utilise lui-meme aujourd'hui, et il sert aussi bien les anciennes icones.
+CDN_BASE = "https://shared.akamai.steamstatic.com/community_assets/images/apps"
 
 # Jaquette verticale de la bibliotheque Steam (format 600x900).
 LIBRARY_ART_BASE = "https://cdn.cloudflare.steamstatic.com/steam/apps"

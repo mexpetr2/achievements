@@ -125,9 +125,17 @@ namespace AchievementsExporter
     /// </summary>
     public class ExporterSettingsView : UserControl
     {
-        public ExporterSettingsView(ExporterSettings settings)
+        // Playnite affecte lui-meme le DataContext de cette vue : il y place
+        // l'objet ISettings rendu par GetSettings(), c'est-a-dire le
+        // view-model. Les liaisons doivent donc passer par sa propriete
+        // Settings ("Settings.PythonPath") et non viser la propriete
+        // directement, sinon elles echouent en silence : le texte saisi reste
+        // affiche mais n'atteint jamais le modele.
+        private const string Racine = nameof(ExporterSettingsViewModel.Settings) + ".";
+
+        public ExporterSettingsView(ExporterSettingsViewModel viewModel)
         {
-            DataContext = settings;
+            DataContext = viewModel;
 
             var pile = new StackPanel { Margin = new Thickness(12) };
 
@@ -166,8 +174,9 @@ namespace AchievementsExporter
             };
         }
 
-        private static UIElement Champ(string libelle, string aide, string propriete)
+        private static UIElement Champ(string libelle, string aide, string nomPropriete)
         {
+            var propriete = Racine + nomPropriete;
             var bloc = new StackPanel { Margin = new Thickness(0, 0, 0, 12) };
             bloc.Children.Add(new TextBlock
             {
@@ -192,14 +201,14 @@ namespace AchievementsExporter
             return bloc;
         }
 
-        private static UIElement Case(string libelle, string propriete)
+        private static UIElement Case(string libelle, string nomPropriete)
         {
             var coche = new CheckBox
             {
                 Content = libelle,
                 Margin = new Thickness(0, 0, 0, 12),
             };
-            coche.SetBinding(CheckBox.IsCheckedProperty, new Binding(propriete));
+            coche.SetBinding(CheckBox.IsCheckedProperty, new Binding(Racine + nomPropriete));
             return coche;
         }
     }

@@ -42,7 +42,7 @@ namespace AchievementsExporter
         public override ISettings GetSettings(bool firstRunSettings) => reglages;
 
         public override UserControl GetSettingsView(bool firstRunView) =>
-            new ExporterSettingsView(reglages.Settings);
+            new ExporterSettingsView(reglages);
 
         public override void OnGameStopped(OnGameStoppedEventArgs args)
         {

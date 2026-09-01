@@ -28,6 +28,7 @@ def app(tmp_path):
                             "description": "Obtenu le Cercle d'Elden.",
                             "unlocked": True,
                             "unlock_time": "2024-03-12T18:44:00+00:00",
+                            "global_percent": 10.4,
                         },
                         {"api_name": "ACH02", "name": "Verrouille", "unlocked": False},
                     ],
@@ -121,6 +122,18 @@ def test_index_does_not_inline_achievement_details(logged_in):
     body = logged_in.get("/").get_data(as_text=True)
     assert "Obtenu le Cercle d&#39;Elden." not in body
     assert "Obtenu le Cercle d'Elden." not in body
+
+
+def test_api_game_exposes_global_percent(logged_in):
+    payload = logged_in.get("/api/game/1245620").get_json()
+    par_nom = {a["api_name"]: a for a in payload["achievements"]}
+    assert par_nom["ACH01"]["global_percent"] == 10.4
+    assert par_nom["ACH02"]["global_percent"] is None
+
+
+def test_game_page_shows_rarity(logged_in):
+    body = logged_in.get("/game/1245620").get_data(as_text=True)
+    assert "10,4 % des joueurs" in body
 
 
 def test_api_game_returns_achievements_as_json(logged_in):

@@ -19,7 +19,7 @@ from flask import (
 
 from web.auth import check_password
 from web.db import connect, init_db
-from web.formatting import format_date, format_playtime
+from web.formatting import format_date, format_playtime, format_rarity
 from web.queries import get_game, list_games
 from web.watcher import start_watcher
 
@@ -78,6 +78,7 @@ def create_app(config: dict | None = None) -> Flask:
 
     app.jinja_env.filters["playtime"] = format_playtime
     app.jinja_env.filters["date_fr"] = format_date
+    app.jinja_env.filters["rarity"] = format_rarity
 
     @app.teardown_appcontext
     def close_conn(_exception):

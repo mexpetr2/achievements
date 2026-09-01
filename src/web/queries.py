@@ -20,7 +20,8 @@ ORDER BY g.last_played IS NULL, g.last_played DESC, g.name COLLATE NOCASE
 """
 
 GET_ACHIEVEMENTS = """
-SELECT api_name, name, description, icon, icon_gray, hidden, unlocked, unlock_time
+SELECT api_name, name, description, icon, icon_gray, hidden, unlocked, unlock_time,
+       global_percent
 FROM achievements
 WHERE appid = ?
 ORDER BY unlocked DESC, unlock_time ASC, name COLLATE NOCASE

@@ -36,7 +36,7 @@ def test_main_writes_export_and_returns_zero(tmp_path, capsys):
     out.mkdir()
 
     code = main(
-        ["--stats-dir", str(stats), "--output-dir", str(out), "--no-catalog-lookup"]
+        ["--stats-dir", str(stats), "--output-dir", str(out), "--no-catalog-lookup", "--no-rarity"]
     )
 
     assert code == 0
@@ -75,7 +75,7 @@ def test_main_skips_catalog_lookup_when_flag_set(tmp_path):
         raise AssertionError("le catalogue ne doit pas etre interroge avec --no-catalog-lookup")
 
     code = main(
-        ["--stats-dir", str(stats), "--output-dir", str(out), "--no-catalog-lookup"],
+        ["--stats-dir", str(stats), "--output-dir", str(out), "--no-catalog-lookup", "--no-rarity"],
         resolve_names=boom,
     )
 
@@ -141,6 +141,7 @@ def test_main_prefers_playnite_playtime_over_steam(tmp_path):
             "--output-dir",
             str(out),
             "--no-catalog-lookup",
+            "--no-rarity",
             "--playnite",
             str(playnite),
         ]
@@ -163,12 +164,50 @@ def test_main_survives_an_unreadable_playnite_file(tmp_path):
             "--output-dir",
             str(out),
             "--no-catalog-lookup",
+            "--no-rarity",
             "--playnite",
             str(tmp_path / "absent.json"),
         ]
     )
 
     assert code == 0  # l'extraction des succes reste prioritaire
+
+
+def test_main_includes_rarity_in_the_export(tmp_path):
+    stats = _fake_stats_dir(tmp_path)
+    out = tmp_path / "partage"
+    out.mkdir()
+
+    def fake_rarity(appids, cache_path, **kwargs):
+        assert list(appids) == [1245620]
+        return {1245620: {"ACH01": 10.4}}
+
+    code = main(
+        ["--stats-dir", str(stats), "--output-dir", str(out), "--no-catalog-lookup"],
+        resolve_rarity=fake_rarity,
+    )
+
+    assert code == 0
+    payload = json.loads(next(out.glob("succes_*.json")).read_text(encoding="utf-8"))
+    assert payload["games"][0]["achievements"][0]["global_percent"] == 10.4
+
+
+def test_main_skips_rarity_lookup_when_flag_set(tmp_path):
+    stats = _fake_stats_dir(tmp_path)
+    out = tmp_path / "partage"
+    out.mkdir()
+
+    def boom(appids, cache_path, **kwargs):
+        raise AssertionError("la raretee ne doit pas etre interrogee avec --no-rarity")
+
+    code = main(
+        ["--stats-dir", str(stats), "--output-dir", str(out), "--no-catalog-lookup", "--no-rarity"],
+        resolve_rarity=boom,
+    )
+
+    assert code == 0
+    payload = json.loads(next(out.glob("succes_*.json")).read_text(encoding="utf-8"))
+    assert payload["games"][0]["achievements"][0]["global_percent"] is None
 
 
 def test_main_reports_missing_output_dir(tmp_path, capsys):
@@ -180,6 +219,7 @@ def test_main_reports_missing_output_dir(tmp_path, capsys):
             "--output-dir",
             str(tmp_path / "absent"),
             "--no-catalog-lookup",
+            "--no-rarity",
         ]
     )
     assert code == 1
@@ -196,6 +236,7 @@ def test_main_reports_missing_steam_dir(tmp_path, capsys):
             "--output-dir",
             str(out),
             "--no-catalog-lookup",
+            "--no-rarity",
         ]
     )
     assert code == 1

@@ -18,6 +18,19 @@ def format_playtime(minutes: int | None) -> str:
     return f"{hours} h {remainder}" if remainder else f"{hours} h"
 
 
+def format_rarity(percent: float | None) -> str:
+    """Rend la raretee d'un succes : '10,4 % des joueurs'.
+
+    Sous 1 %, on garde deux decimales : c'est justement la ou l'ecart est
+    interessant (0,12 % et 0,9 % ne racontent pas la meme histoire).
+    """
+    if percent is None:
+        return ""
+    decimales = 2 if percent < 1 else 1
+    valeur = f"{percent:.{decimales}f}".replace(".", ",")
+    return f"{valeur} % des joueurs"
+
+
 def format_date(value: str | None) -> str:
     """Rend une date ISO au format jour/mois/annee, ou 'jamais' si inconnue."""
     if not value:

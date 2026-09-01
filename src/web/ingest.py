@@ -25,15 +25,19 @@ ON CONFLICT(appid) DO UPDATE SET
 # Un succes debloque le reste : on ne repasse jamais unlocked de 1 a 0.
 UPSERT_ACHIEVEMENT = """
 INSERT INTO achievements
-    (appid, api_name, name, description, icon, icon_gray, hidden, unlocked, unlock_time)
+    (appid, api_name, name, description, icon, icon_gray, hidden, unlocked, unlock_time,
+     global_percent)
 VALUES
-    (:appid, :api_name, :name, :description, :icon, :icon_gray, :hidden, :unlocked, :unlock_time)
+    (:appid, :api_name, :name, :description, :icon, :icon_gray, :hidden, :unlocked, :unlock_time,
+     :global_percent)
 ON CONFLICT(appid, api_name) DO UPDATE SET
     name = excluded.name,
     description = excluded.description,
     icon = excluded.icon,
     icon_gray = excluded.icon_gray,
     hidden = excluded.hidden,
+    -- Un export sans raretee (mode hors ligne) ne doit pas effacer la valeur connue.
+    global_percent = COALESCE(excluded.global_percent, achievements.global_percent),
     unlocked = MAX(achievements.unlocked, excluded.unlocked),
     unlock_time = COALESCE(achievements.unlock_time, excluded.unlock_time)
 """
@@ -87,6 +91,11 @@ def ingest_export(conn: sqlite3.Connection, payload: dict) -> dict:
                             "hidden": int(bool(ach.get("hidden"))),
                             "unlocked": int(bool(ach.get("unlocked"))),
                             "unlock_time": ach.get("unlock_time"),
+                            "global_percent": (
+                                float(ach["global_percent"])
+                                if isinstance(ach.get("global_percent"), (int, float))
+                                else None
+                            ),
                         },
                     )
                     achievement_count += 1

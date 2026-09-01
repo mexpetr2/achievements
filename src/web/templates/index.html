@@ -73,6 +73,13 @@
     return noeud.innerHTML;
   };
 
+  // Meme regle que le filtre Python `rarity` : deux decimales sous 1 %, la ou
+  // l'ecart est significatif, une seule au-dessus.
+  const formaterRarete = (pourcent) => {
+    const decimales = pourcent < 1 ? 2 : 1;
+    return `${pourcent.toFixed(decimales).replace('.', ',')} % des joueurs`;
+  };
+
   const carteSucces = (succes) => {
     const verrouille = !succes.unlocked;
     const cache = succes.hidden && verrouille;
@@ -84,11 +91,18 @@
     const date = (!cache && succes.unlocked && succes.unlock_time)
       ? `<div class="muted">Débloqué le ${echapper(succes.unlock_time.slice(0, 10))}</div>`
       : '';
+    // La rareté reste affichée même sur un succès caché : elle ne dévoile rien
+    // de son contenu, et c'est justement ce qui rend l'attente parlante.
+    const rarete = typeof succes.global_percent === 'number'
+      ? `<div class="rarete${succes.global_percent < 5 ? ' rare' : ''}">`
+        + `${formaterRarete(succes.global_percent)}</div>`
+      : '';
     return `<div class="ach ${verrouille ? 'locked' : ''}">
       ${image && !cache ? `<img src="${echapper(image)}" alt="" loading="lazy">` : ''}
       <div>
         <strong>${titre}</strong>
         ${detail ? `<div class="muted">${detail}</div>` : ''}
+        ${rarete}
         ${date}
       </div>
     </div>`;

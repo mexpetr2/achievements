@@ -6,6 +6,7 @@ import sys
 from pathlib import Path
 
 from extractor.export import build_export, write_export
+from extractor.global_stats import resolve_global_percentages
 from extractor.library import read_activity
 from extractor.playnite import merge_activity, read_playnite_activity
 from extractor.steam_catalog import resolve_catalog_names
@@ -17,10 +18,16 @@ from extractor.steam_paths import (
     pick_account_id,
 )
 
-DEFAULT_CATALOG_CACHE = Path.home() / ".cache" / "achievements-extractor" / "steam_catalog.json"
+CACHE_DIR = Path.home() / ".cache" / "achievements-extractor"
+DEFAULT_CATALOG_CACHE = CACHE_DIR / "steam_catalog.json"
+DEFAULT_RARITY_CACHE = CACHE_DIR / "steam_rarity.json"
 
 
-def main(argv: list[str] | None = None, resolve_names=resolve_catalog_names) -> int:
+def main(
+    argv: list[str] | None = None,
+    resolve_names=resolve_catalog_names,
+    resolve_rarity=resolve_global_percentages,
+) -> int:
     parser = argparse.ArgumentParser(
         prog="extractor",
         description="Exporte les succes Steam locaux vers un fichier JSON.",
@@ -54,6 +61,20 @@ def main(argv: list[str] | None = None, resolve_names=resolve_catalog_names) -> 
         "--catalog-cache",
         default=str(DEFAULT_CATALOG_CACHE),
         help=f"Fichier de cache des noms resolus (defaut : {DEFAULT_CATALOG_CACHE}).",
+    )
+    parser.add_argument(
+        "--no-rarity",
+        action="store_true",
+        help=(
+            "Desactive la recuperation du pourcentage mondial de joueurs ayant "
+            "obtenu chaque succes. Cette donnee est globale, donc absente du "
+            "cache Steam local : elle vient de l'API publique, en best-effort."
+        ),
+    )
+    parser.add_argument(
+        "--rarity-cache",
+        default=str(DEFAULT_RARITY_CACHE),
+        help=f"Fichier de cache des pourcentages (defaut : {DEFAULT_RARITY_CACHE}).",
     )
     parser.add_argument(
         "--playnite",
@@ -95,7 +116,13 @@ def main(argv: list[str] | None = None, resolve_names=resolve_catalog_names) -> 
         if args.playnite:
             activity = merge_activity(activity, read_playnite_activity(Path(args.playnite)))
 
-        export = build_export(games, account_id, catalog_names, not_found_appids, activity)
+        rarity = {}
+        if not args.no_rarity:
+            rarity = resolve_rarity([g.appid for g in games], Path(args.rarity_cache))
+
+        export = build_export(
+            games, account_id, catalog_names, not_found_appids, activity, rarity
+        )
         path = write_export(export, Path(args.output_dir))
     except (SteamNotFoundError, FileNotFoundError, PermissionError, OSError) as error:
         print(f"Echec de l'export : {error}", file=sys.stderr)

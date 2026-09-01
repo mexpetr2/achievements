@@ -66,6 +66,10 @@
     .ach.locked { opacity: 0.45; }
     .ach.locked img { filter: grayscale(1); }
     .ach strong { font-size: 0.9rem; }
+    /* Rarete : distincte de .muted pour ressortir, et mise en avant quand le
+       succes est vraiment rare. */
+    .rarete { font-size: 0.8rem; color: #7f8798; margin-top: 0.15rem; }
+    .rarete.rare { color: #f0b354; font-weight: 600; }
 
     @media (max-width: 640px) {
       body { padding: 0.9rem; }

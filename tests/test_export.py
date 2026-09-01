@@ -96,6 +96,27 @@ def test_cover_url_builds_steam_library_art_path():
     )
 
 
+def test_build_game_export_includes_global_percent(tmp_path):
+    result = build_game_export(_write_game(tmp_path), global_percentages={"ACH01": 10.4})
+    par_nom = {a["api_name"]: a for a in result["achievements"]}
+    assert par_nom["ACH01"]["global_percent"] == 10.4
+
+
+def test_build_game_export_sets_null_global_percent_when_unknown(tmp_path):
+    result = build_game_export(_write_game(tmp_path), global_percentages={"ACH01": 10.4})
+    par_nom = {a["api_name"]: a for a in result["achievements"]}
+    assert par_nom["ACH02"]["global_percent"] is None
+
+
+def test_build_export_passes_global_percentages_by_appid(tmp_path):
+    game = _write_game(tmp_path, appid=1245620)
+
+    export = build_export([game], account_id="555", global_percentages={1245620: {"ACH01": 42.0}})
+
+    par_nom = {a["api_name"]: a for a in export["games"][0]["achievements"]}
+    assert par_nom["ACH01"]["global_percent"] == 42.0
+
+
 def test_build_game_export_includes_cover_url(tmp_path):
     result = build_game_export(_write_game(tmp_path))
     assert result["cover"] == cover_url(1245620)

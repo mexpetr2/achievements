@@ -36,6 +36,7 @@ def build_game_export(
     game: GameFiles,
     catalog_name: str | None = None,
     activity: GameActivity | None = None,
+    global_percentages: dict[str, float] | None = None,
 ) -> dict:
     """Fusionne definitions et etat de deblocage pour un jeu.
 
@@ -46,7 +47,11 @@ def build_game_export(
 
     `activity` (voir library.py) porte le temps de jeu et la date de derniere
     partie. Absent pour les jeux que Steam n'a jamais vu tourner localement.
+
+    `global_percentages` (voir global_stats.py) donne la part mondiale de
+    joueurs ayant obtenu chaque succes, indexee par nom d'API.
     """
+    global_percentages = global_percentages or {}
     schema = parse_schema(game.schema_path.read_bytes(), appid=game.appid)
     unlocks = parse_userstats(game.stats_path.read_bytes())
 
@@ -62,6 +67,7 @@ def build_game_export(
                 "icon": icon_url(game.appid, definition.icon),
                 "icon_gray": icon_url(game.appid, definition.icon_gray),
                 "hidden": definition.hidden,
+                "global_percent": global_percentages.get(definition.api_name),
                 "unlocked": timestamp is not None,
                 "unlock_time": (
                     datetime.fromtimestamp(timestamp, tz=UTC).isoformat()
@@ -92,6 +98,7 @@ def build_export(
     catalog_names: dict[int, str] | None = None,
     not_found_appids: set[int] | None = None,
     activity: dict[int, GameActivity] | None = None,
+    global_percentages: dict[int, dict[str, float]] | None = None,
 ) -> dict:
     """Construit l'export complet, en sautant les jeux illisibles.
 
@@ -105,11 +112,15 @@ def build_export(
     catalog_names = catalog_names or {}
     not_found_appids = not_found_appids or set()
     activity = activity or {}
+    global_percentages = global_percentages or {}
     exported_games = []
     for game in games:
         try:
             game_export = build_game_export(
-                game, catalog_names.get(game.appid), activity.get(game.appid)
+                game,
+                catalog_names.get(game.appid),
+                activity.get(game.appid),
+                global_percentages.get(game.appid),
             )
         except Exception as error:  # noqa: BLE001 - un jeu casse ne doit pas tout arreter
             logger.warning("jeu %s ignore : %s: %s", game.appid, type(error).__name__, error)

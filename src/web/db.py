@@ -23,6 +23,8 @@ CREATE TABLE IF NOT EXISTS achievements (
     hidden       INTEGER NOT NULL DEFAULT 0,
     unlocked     INTEGER NOT NULL DEFAULT 0,
     unlock_time  TEXT,
+    -- Part mondiale de joueurs ayant obtenu ce succes (rarete).
+    global_percent REAL,
     PRIMARY KEY (appid, api_name)
 );
 
@@ -54,6 +56,7 @@ MIGRATIONS = (
     ("games", "cover", "TEXT"),
     ("games", "playtime_minutes", "INTEGER"),
     ("games", "last_played", "TEXT"),
+    ("achievements", "global_percent", "REAL"),
 )
 
 

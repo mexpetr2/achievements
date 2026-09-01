@@ -1,6 +1,22 @@
 """Tests du formatage d'affichage (durees de jeu, dates)."""
 
-from web.formatting import format_date, format_playtime
+from web.formatting import format_date, format_playtime, format_rarity
+
+
+def test_format_rarity_uses_one_decimal_and_a_french_comma():
+    assert format_rarity(10.4) == "10,4 % des joueurs"
+
+
+def test_format_rarity_keeps_two_decimals_below_one_percent():
+    assert format_rarity(0.12) == "0,12 % des joueurs"
+
+
+def test_format_rarity_handles_a_very_common_achievement():
+    assert format_rarity(75.0) == "75,0 % des joueurs"
+
+
+def test_format_rarity_returns_empty_string_when_unknown():
+    assert format_rarity(None) == ""
 
 
 def test_format_playtime_shows_minutes_under_an_hour():

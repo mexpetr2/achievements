@@ -40,6 +40,11 @@
       <div class="muted">Débloqué le {{ ach.unlock_time[:10] }}</div>
       {% endif %}
       {% endif %}
+      {% if ach.global_percent is not none %}
+      <div class="rarete {% if ach.global_percent < 5 %}rare{% endif %}">
+        {{ ach.global_percent|rarity }}
+      </div>
+      {% endif %}
     </div>
   </div>
   {% endfor %}
